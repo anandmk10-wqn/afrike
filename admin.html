@@ -114,29 +114,28 @@
                             </tr>
                         </thead>
                         <tbody id="shipment-table-body" class="text-dark-gray">
-                            <!-- Placeholder Row 1 -->
-                            <tr class="border-b">
-                                <td class="py-3 px-4">PO12345</td>
-                                <td class="py-3 px-4">TRK9876</td>
-                                <td class="py-3 px-4"><span class="bg-yellow-200 text-yellow-800 py-1 px-3 rounded-full text-xs">In Transit</span></td>
-                                <td class="py-3 px-4 text-center">
-                                    <button class="text-sea-green hover:text-deep-green font-semibold mr-4">Edit</button>
-                                    <button class="text-red-500 hover:text-red-700 font-semibold">Delete</button>
-                                </td>
-                            </tr>
-                            <!-- Placeholder Row 2 -->
-                            <tr class="border-b">
-                                <td class="py-3 px-4">PO54321</td>
-                                <td class="py-3 px-4">TRK6789</td>
-                                <td class="py-3 px-4"><span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs">Delivered</span></td>
-                                <td class="py-3 px-4 text-center">
-                                    <button class="text-sea-green hover:text-deep-green font-semibold mr-4">Edit</button>
-                                    <button class="text-red-500 hover:text-red-700 font-semibold">Delete</button>
-                                </td>
-                            </tr>
-                            <!-- More rows will be added here by JavaScript -->
+                            <!-- Rows will be added here by JavaScript -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- RFQ Dropdown Management -->
+            <div class="mt-8 bg-white p-8 rounded-lg shadow-md">
+                <h3 class="text-2xl font-bold text-deep-green mb-4">Manage RFQ Dropdown Options</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Add New Category -->
+                    <div>
+                        <h4 class="text-xl font-semibold text-dark-gray mb-2">Add New Category</h4>
+                        <form id="add-category-form" class="flex items-center space-x-2">
+                            <input type="text" id="new-category-name" class="input-field flex-grow" placeholder="e.g., Tricycles" required>
+                            <button type="submit" class="btn btn-primary">Add</button>
+                        </form>
+                    </div>
+                </div>
+                <!-- Existing Categories -->
+                <div id="categories-container" class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Categories will be rendered here by JavaScript -->
                 </div>
             </div>
         </div>
@@ -282,6 +281,95 @@
                 });
 
                 cancelButton.addEventListener('click', resetForm);
+
+                // --- RFQ Management ---
+                const rfqOptionsCollection = db.collection('rfqOptions');
+                const categoriesContainer = document.getElementById('categories-container');
+                const addCategoryForm = document.getElementById('add-category-form');
+
+                const renderCategoryCard = (doc) => {
+                    const categoryId = doc.id;
+                    const category = doc.data();
+                    const card = document.createElement('div');
+                    card.className = 'category-card bg-light-gray p-4 rounded-lg shadow';
+                    card.setAttribute('data-id', categoryId);
+
+                    let itemsHtml = '<ul class="space-y-2 text-sm">';
+                    if (category.items && category.items.length > 0) {
+                        category.items.forEach(item => {
+                            itemsHtml += `<li class="flex justify-between items-center p-1 bg-white rounded">${item} <button class="delete-item-btn text-red-500 hover:text-red-700 text-xs font-semibold" data-item="${item}">REMOVE</button></li>`;
+                        });
+                    } else {
+                        itemsHtml += '<li class="text-gray-500">No items yet.</li>';
+                    }
+                    itemsHtml += '</ul>';
+
+                    card.innerHTML = `
+                        <div class="flex justify-between items-center mb-3">
+                            <h5 class="text-lg font-bold text-deep-green">${categoryId}</h5>
+                            <button class="delete-category-btn text-red-500 hover:text-red-700 font-semibold">Delete Category</button>
+                        </div>
+                        <div class="mb-4">
+                            <h6 class="font-semibold mb-2 text-dark-gray">Items:</h6>
+                            ${itemsHtml}
+                        </div>
+                        <form class="add-item-form flex items-center space-x-2">
+                            <input type="text" class="input-field flex-grow text-sm" placeholder="New item name" required>
+                            <button type="submit" class="btn btn-primary text-sm">Add Item</button>
+                        </form>
+                    `;
+                    categoriesContainer.appendChild(card);
+                };
+
+                rfqOptionsCollection.onSnapshot(snapshot => {
+                    categoriesContainer.innerHTML = '';
+                    snapshot.docs.forEach(renderCategoryCard);
+                });
+
+                addCategoryForm.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const newCategoryName = addCategoryForm['new-category-name'].value.trim();
+                    if (newCategoryName) {
+                        rfqOptionsCollection.doc(newCategoryName).set({ items: [] })
+                            .then(() => addCategoryForm.reset())
+                            .catch(err => console.error("Error adding category:", err));
+                    }
+                });
+
+                categoriesContainer.addEventListener('click', e => {
+                    const card = e.target.closest('.category-card');
+                    if (!card) return;
+                    const categoryId = card.dataset.id;
+
+                    // Handle Category Deletion
+                    if (e.target.matches('.delete-category-btn')) {
+                        if (confirm(`Are you sure you want to delete the "${categoryId}" category and all its items?`)) {
+                            rfqOptionsCollection.doc(categoryId).delete().catch(err => console.error(err));
+                        }
+                    }
+
+                    // Handle Item Addition
+                    if (e.target.closest('.add-item-form')) {
+                        e.preventDefault();
+                        const form = e.target.closest('.add-item-form');
+                        const newItemName = form.querySelector('input').value.trim();
+                        if (newItemName) {
+                            rfqOptionsCollection.doc(categoryId).update({
+                                items: firebase.firestore.FieldValue.arrayUnion(newItemName)
+                            }).then(() => form.reset()).catch(err => console.error(err));
+                        }
+                    }
+
+                    // Handle Item Deletion
+                    if (e.target.matches('.delete-item-btn')) {
+                        const itemNameToDelete = e.target.dataset.item;
+                        if (confirm(`Are you sure you want to delete the item "${itemNameToDelete}"?`)) {
+                            rfqOptionsCollection.doc(categoryId).update({
+                                items: firebase.firestore.FieldValue.arrayRemove(itemNameToDelete)
+                            }).catch(err => console.error(err));
+                        }
+                    }
+                });
             };
         });
     </script>

@@ -778,7 +778,7 @@
                 <h2 class="text-2xl font-bold text-dark-gray mb-4">Find Us</h2>
                 <div class="w-full h-64 md:h-full rounded-lg overflow-hidden shadow-md">
                     <iframe
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3153.059293444211!2d-122.083851!3d37.4220656!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808fb026c4b247f1%3A0x6b8d4e4c2f6d2e6!2sGoogleplex!5e0!3m2!1sen!2sus!4v1678901234567!5m2!1sen!2sus"
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3610.17897288636!2d55.2924306!3d25.1576084!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3e5f69b2f6cd17f9%3A0x175c42ddf3af3230!2sAl%20Meydan%20Rd%20-%20Dubai%20-%20United%20Arab%20Emirates!5e0!3m2!1sen!2sus"
                         width="100%"
                         height="100%"
                         style="border:0;"
@@ -890,12 +890,7 @@
             './images/Afritrike/1/BP1.jpg'
         ];
 
-        // Data for RFQ dropdowns
-        const rfqGoodsOptions = {
-            Tricycle: ['Model1', 'Model2', 'Model3'],
-            Parts: ['Battery1', 'Battery2', 'Windshield', 'Mirror1', 'Mirror2', 'Solar1', 'Solar2', 'Tyre', 'Tube', 'Part1', 'Part2']
-        };
-
+        let rfqOptionsData = {};
         let gallerySlideshowInterval;
         let currentGallerySlideIndex = 0;
         let currentHomeSlideIndex = 0;
@@ -1047,6 +1042,25 @@
             document.getElementById('rfqSubSelectionContainer').classList.add('hidden');
             document.getElementById('rfqSubProduct').innerHTML = '<option value="">-- Select Sub-item --</option>';
             document.getElementById('rfqFormStatus').textContent = '';
+
+            // Fetch RFQ options from Firestore
+            const rfqProductTypeDropdown = document.getElementById('rfqProductType');
+            rfqProductTypeDropdown.innerHTML = '<option value="">-- Loading... --</option>';
+
+            db.collection('rfqOptions').get().then(snapshot => {
+                rfqOptionsData = {};
+                rfqProductTypeDropdown.innerHTML = '<option value="">-- Select Product Type --</option>';
+                snapshot.docs.forEach(doc => {
+                    rfqOptionsData[doc.id] = doc.data().items;
+                    const option = document.createElement('option');
+                    option.value = doc.id;
+                    option.textContent = doc.id;
+                    rfqProductTypeDropdown.appendChild(option);
+                });
+            }).catch(err => {
+                console.error("Error fetching RFQ options:", err);
+                rfqProductTypeDropdown.innerHTML = '<option value="">-- Error loading options --</option>';
+            });
         }
 
         window.closeRfqModal = function() {
@@ -1067,8 +1081,8 @@
 
             subProductDropdown.innerHTML = '<option value="">-- Select Sub-item --</option>';
 
-            if (productType && rfqGoodsOptions[productType]) {
-                rfqGoodsOptions[productType].forEach(item => {
+            if (productType && rfqOptionsData[productType]) {
+                rfqOptionsData[productType].forEach(item => {
                     const option = document.createElement('option');
                     option.value = item;
                     option.textContent = item;
