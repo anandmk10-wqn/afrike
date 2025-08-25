@@ -199,7 +199,7 @@
             align-items: center;
             justify-content: center;
         }
-        .gallery-slideshow-modal-.image {
+        .gallery-slideshow-modal-image {
             position: absolute; /* Added this */
             top: 0;
             left: 0;
@@ -945,9 +945,20 @@
             const imgElements = document.querySelectorAll('#gallery-slideshow-modal-container .gallery-slideshow-modal-image');
             if (imgElements.length === 0) return;
 
-            imgElements.forEach(img => img.classList.remove('active')); // Ensure only one is active
+            // Hide the current slide
+            imgElements[currentGallerySlideIndex].classList.remove('active');
+
+            // Calculate the new index
             currentGallerySlideIndex = (currentGallerySlideIndex + n + imgElements.length) % imgElements.length;
+
+            // Show the new slide
             imgElements[currentGallerySlideIndex].classList.add('active');
+
+            // Reset the slideshow interval
+            clearInterval(gallerySlideshowInterval);
+            gallerySlideshowInterval = setInterval(() => {
+                changeGallerySlide(1);
+            }, 4000);
         }
 
         // Function to render gallery thumbnails
