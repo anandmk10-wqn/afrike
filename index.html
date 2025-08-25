@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afritrike</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        /* Define custom color palette using CSS variables */
+        :root {
+            --color-deep-green: #0A4734; /* A deep, rich green */
+            --color-sea-green: #20B2AA; /* A vibrant sea green for accents */
+            --color-light-orange: #FFDAB9; /* A soft, peachy orange */
+            --color-dark-orange: #FF8C00; /* A vibrant, darker orange for highlights/buttons */
+            --color-dark-gray: #333333; /* Charcoal gray */
+            --color-medium-gray: #666666; /* Medium gray for secondary text */
+            --color-light-gray: #F0F0F0; /* Very light gray, almost white */
+            --color-white: #FFFFFF; /* Pure white */
+            --color-text-light: #E0E0E0; /* Light text on dark backgrounds */
+            --color-text-dark: #222222; /* Dark text on light backgrounds */
+        }
+
+        /* Custom font for better readability */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Add padding-top to body to prevent content from being hidden by fixed navbar */
+            padding-top: 4.5rem; /* Adjusted padding-top for fixed nav height */
+            background-color: var(--color-light-gray); /* Overall light background */
+        }
+        /* Custom font for Bebas Neue headings */
+        .font-bebas-neue {
+            font-family: 'Bebas Neue', sans-serif;
+        }
+        /* Custom shiny effect for text, with a slightly more noticeable shadow */
+        .text-shadow-effect {
+            text-shadow: 1.5px 1.5px 3px rgba(0,0,0,0.4);
+        }
+
+        /* Main Home Slider Styling */
+        .home-slider-container {
+            position: relative;
+            width: 100%;
+            height: 550px; /* Increased height for prominence */
+            overflow: hidden;
+        }
+        .home-slider-image {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 1s ease-in-out;
+        }
+        .home-slider-image.active {
+            opacity: 1;
+        }
+
+        /* Main Parallax Background Section */
+        .main-parallax-background {
+            background-image: url('./images/Redposter2.jpg'); /* Deep green background image with orange accent */
+            background-attachment: fixed;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            position: relative;
+            /* This section will span from after Mission/Vision until Gallery */
+            min-height: 1200px; /* Adjust based on content inside */
+        }
+
+        /* Overlay for the Our Team section to make background darker with dots */
+        .our-team-overlay::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: radial-gradient(circle, rgba(0,0,0,0.1) 1px, transparent 1px);
+            background-size: 8px 8px; /* Size of the dots and spacing */
+            opacity: 0.7; /* Adjust transparency of dots */
+            z-index: 1; /* Ensure overlay is above background but below content */
+        }
+
+        /* Gallery Thumbnail Grid Styling */
+        .gallery-thumbnail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* Responsive grid */
+            gap: 1rem;
+            padding: 1rem;
+        }
+        .gallery-thumbnail-item {
+            position: relative;
+            padding-top: 75%; /* 4:3 Aspect Ratio (height / width * 100%) */
+            overflow: hidden;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .gallery-thumbnail-item:hover {
+            transform: scale(1.03);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.2);
+        }
+        .gallery-thumbnail-item img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* New: Single Video Section Styling */
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 450px; /* Adjusted height for the background video section */
+            overflow: hidden;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+        }
+        .video-container video {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            transform: translate(-50%, -50%);
+            object-fit: cover; /* Ensures video fills container horizontally and vertically */
+        }
+        .video-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+            color: var(--color-white);
+            text-align: center;
+            transition: background-color 0.3s ease;
+            cursor: default; /* No pointer for non-clickable overlay */
+        }
+        .video-overlay-text {
+            font-size: 2.5rem;
+            font-weight: bold;
+            font-family: 'Bebas Neue', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            line-height: 1;
+        }
+
+
+        /* Full-screen Gallery Slideshow Modal Styling */
+        .gallery-slideshow-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9); /* Darker overlay */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .gallery-slideshow-modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .gallery-slideshow-modal-content {
+            position: relative; /* Added this */
+            width: 90%;
+            height: 90%;
+            max-width: 1200px; /* Max width for large screens */
+            max-height: 800px; /* Max height for large screens */
+            background-color: var(--color-dark-gray); /* Dark background for slideshow */
+            border-radius: 0.75rem;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .gallery-slideshow-modal-.image {
+            position: absolute; /* Added this */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Ensure image fits within bounds */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .gallery-slideshow-modal-image.active {
+            opacity: 1;
+        }
+        .gallery-slideshow-nav-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: var(--color-white);
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1.5rem;
+            z-index: 10;
+            transition: background-color 0.3s ease;
+        }
+        .gallery-slideshow-nav-button:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        .gallery-slideshow-nav-button.prev {
+            left: 1rem;
+        }
+        .gallery-slideshow-nav-button.next {
+            right: 1rem;
+        }
+        .gallery-modal-close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--color-white);
+            z-index: 11;
+            background-color: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s ease;
+        }
+        .gallery-modal-close-button:hover {
+            background-color: rgba(0,0,0,0.8);
+        }
+
+
+        /* Modal styles (Contact Us and RFQ) */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: var(--color-white);
+            padding: 2rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            position: relative;
+            max-width: 90%; /* Default for mobile */
+            max-height: 90%;
+            overflow-y: auto; /* Enable scrolling for modal content */
+        }
+        /* Desktop enlargement for modal */
+        @media (min-width: 1024px) { /* lg breakpoint */
+            .modal-content {
+                max-width: 85%; /* Enlarged for desktop */
+            }
+        }
+
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--color-dark-gray);
+        }
+
+        /* Custom Colors based on variables */
+        .bg-deep-green { background-color: var(--color-deep-green); }
+        .bg-sea-green { background-color: var(--color-sea-green); }
+        .bg-light-orange { background-color: var(--color-light-orange); }
+        .bg-dark-orange { background-color: var(--color-dark-orange); }
+        .bg-dark-gray { background-color: var(--color-dark-gray); }
+        .bg-medium-gray { background-color: var(--color-medium-gray); }
+        .bg-light-gray { background-color: var(--color-light-gray); }
+        .text-deep-green { color: var(--color-deep-green); }
+        .text-sea-green { color: var(--color-sea-green); }
+        .text-light-orange { color: var(--color-light-orange); }
+        .text-dark-orange { color: var(--color-dark-orange); }
+        .text-dark-gray { color: var(--color-dark-gray); }
+        .text-medium-gray { color: var(--color-medium-gray); }
+        .text-light-gray { color: var(--color-light-gray); }
+        .border-deep-green { border-color: var(--color-deep-green); }
+        .border-sea-green { border-color: var(--color-sea-green); }
+        .border-dark-orange { border-color: var(--color-dark-orange); }
+
+        /* Hover effects for menu items */
+        .menu-item-hover-effect {
+            transition: transform 0.3s ease-in-out, font-weight 0.3s ease-in-out, color 0.3s ease-in-out;
+        }
+        .menu-item-hover-effect:hover {
+            transform: scale(1.05);
+            font-weight: bold;
+            color: var(--color-sea-green); /* Sea green on hover */
+        }
+
+        /* Active menu item styling */
+        .active-menu-item {
+            color: var(--color-sea-green) !important; /* Sea green to signify active */
+            font-weight: bold;
+        }
+
+        /* Floating Copyright Bar */
+        .floating-copyright-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--color-dark-gray);
+            color: var(--color-light-gray);
+            text-align: center;
+            padding: 0.75rem 1rem;
+            z-index: 999;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+            box-shadow: 0 -4px 8px rgba(0,0,0,0.2);
+            border-bottom-left-radius: 1.5rem;
+            border-bottom-right-radius: 1.5rem;
+        }
+        .floating-copyright-bar.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Mobile Menu Specific Styling */
+        .mobile-menu-grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 2 columns */
+            gap: 1rem; /* Gap between blocks */
+            width: 100%;
+            max-width: 500px; /* Max width for the grid */
+            padding: 1rem;
+        }
+
+        .mobile-menu-block {
+            position: relative;
+            padding-top: 100%; /* Makes the block square */
+            cursor: pointer;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2 px 4px -1px rgba(0, 0, 0, 0.06); /* shadow-md */
+            overflow: hidden;
+            transition: background-color 0.3s ease;
+        }
+
+        .mobile-menu-block-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            text-align: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .mobile-menu-block-link {
+            color: var(--color-text-light);
+            font-size: 1.25rem; /* text-xl */
+            font-weight: bold;
+            text-shadow: 1.5px 1.5px 3px rgba(0,0,0,0.4); /* text-shadow-effect */
+            display: block;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        .mobile-menu-block-link:hover {
+            color: var(--color-sea-green);
+        }
+
+        /* Active mobile menu item */
+        .active-menu-item-mobile {
+            background-color: var(--color-sea-green) !important;
+        }
+
+        /* Styles for form buttons in modals */
+        .contact-submit-button, .rfq-submit-button {
+            background-color: var(--color-dark-orange);
+            transition: background-color 0.3s ease;
+        }
+        .contact-submit-button:hover, .rfq-submit-button:hover {
+            background-color: var(--color-sea-green);
+        }
+
+        /* Dropdown menu styling */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: var(--color-light-gray);
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 0.5rem;
+            overflow: hidden; /* Ensures rounded corners apply to children */
+            top: 100%; /* Position below the parent item */
+            left: 50%; /* Center dropdown relative to parent */
+            transform: translateX(-50%); /* Adjust for centering */
+            padding: 0.5rem 0;
+        }
+
+        .dropdown-content a {
+            color: var(--color-dark-gray);
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            display: block;
+            text-align: left;
+            font-weight: normal; /* Override bold from main menu */
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .dropdown-content a:hover {
+            background-color: var(--color-light-orange);
+            color: var(--color-dark-gray);
+            transform: none; /* Disable scale effect for dropdown items */
+            font-weight: normal;
+        }
+
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+
+
+    <nav id="main-navbar" class="fixed top-0 left-0 right-0 px-4 py-3 z-50 bg-light-graybg-opacity-30 backdrop-blur shadow-xl items-center hidden lg:flex justify-between transition-all duration-300">
+        <div>
+        <img src="./images/logo1.png" alt="Afritrike Logo" class="h-10" onerror="this.onerror=null;this.src='https://placehold.co/120x40/CCCCCC/000000?text=Logo+Err';">
+        </div>
+        <ul class="flex space-x-8 pr-4">
+            <li><a href="#home-section" id="menu-home" class="text-dark-gray text-lg menu-item-hover-effect" onclick="highlightActiveMenu(this)">Home</a></li>
+            <li><a href="#mission-vision-section" id="menu-missionvision" class="text-dark-gray text-lg menu-item-hover-effect" onclick="highlightActiveMenu(this)">Mission & Vision</a></li>
+            <li><a href="#about-us-section" id="menu-aboutus" class="text-dark-gray text-lg menu-item-hover-effect" onclick="highlightActiveMenu(this)">About us</a></li>
+            <li><a href="#single-video-section" id="menu-video" class="text-dark-gray text-lg menu-item-hover-effect" onclick="highlightActiveMenu(this)">Video</a></li>
+            <li><a href="#our-team-section" id="menu-ourteam" class="text-dark-gray text-lg menu-item-hover-effect" onclick="highlightActiveMenu(this)">Our Team</a></li>
+            <li><a href="#gallery-section" id="menu-gallery" class="text-dark-gray text-lg menu-item-hover-effect" onclick="highlightActiveMenu(this)">Gallery</a></li>
+            <li class="dropdown">
+                <a href="#" id="menu-more-parent" class="text-dark-gray text-lg menu-item-hover-effect" onclick="event.preventDefault(); highlightActiveMenu(this);">More</a>
+                <div class="dropdown-content">
+                    <a href="#" onclick="openContactModal(); highlightActiveMenu(document.getElementById('menu-more-parent'));">Contact Us</a>
+                    <a href="#" onclick="openRfqModal(); highlightActiveMenu(document.getElementById('menu-more-parent'));">Send RFQ</a>
+                    <a href="#" onclick="openShipmentModal(); highlightActiveMenu(document.getElementById('menu-more-parent'));">Check Shipment Status</a>
+                </div>
+            </li>
+        </ul>
+    </nav>
+
+    <div class="fixed top-3 right-4 z-50 lg:hidden">
+        <button id="mobile-menu-button" class="text-dark-gray p-2 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white bg-light-gray rounded-md">
+            <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+    </div>
+
+    <div id="mobile-menu" class="fixed inset-0 bg-dark-gray z-50 hidden lg:hidden flex-col items-center justify-center p-4">
+        <button id="close-mobile-menu-button" class="absolute top-4 right-4 text-light-gray text-4xl focus:outline-none">×</button>
+
+        <div class="mobile-menu-grid-container">
+            <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-home">
+                <div class="mobile-menu-block-content">
+                    <a href="#home-section" class="mobile-menu-block-link" onclick="highlightActiveMobileMenu(this); closeMobileMenu();">Home</a>
+                </div>
+            </div>
+
+            <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-missionvision">
+                <div class="mobile-menu-block-content">
+                    <a href="#mission-vision-section" class="mobile-menu-block-link" onclick="highlightActiveMobileMenu(this); closeMobileMenu();">Mission & Vision</a>
+                </div>
+            </div>
+
+            <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-aboutus">
+                <div class="mobile-menu-block-content">
+                    <a href="#about-us-section" class="mobile-menu-block-link" onclick="highlightActiveMobileMenu(this); closeMobileMenu();">About us</a>
+                </div>
+            </div>
+
+            <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-video">
+                <div class="mobile-menu-block-content">
+                    <a href="#single-video-section" class="mobile-menu-block-link" onclick="highlightActiveMobileMenu(this); closeMobileMenu();">Video</a>
+                </div>
+            </div>
+
+            <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-ourteam">
+                <div class="mobile-menu-block-content">
+                    <a href="#our-team-section" class="mobile-menu-block-link" onclick="highlightActiveMobileMenu(this); closeMobileMenu();">Our Team</a>
+                </div>
+            </div>
+
+            <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-gallery">
+                <div class="mobile-menu-block-content">
+                    <a href="#gallery-section" class="mobile-menu-block-link" onclick="highlightActiveMobileMenu(this); closeMobileMenu();">Gallery</a>
+                </div>
+            </div>
+
+            <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-contact">
+                <div class="mobile-menu-block-content">
+                    <a href="#" class="mobile-menu-block-link" onclick="openContactModal(); highlightActiveMobileMenu(this); closeMobileMenu();">Contact Us</a>
+                </div>
+            </div>
+
+            <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-rfq">
+                <div class="mobile-menu-block-content">
+                    <a href="#" class="mobile-menu-block-link" onclick="openRfqModal(); highlightActiveMobileMenu(this); closeMobileMenu();">Send RFQ</a>
+                </div>
+            </div>
+
+            <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-shipment">
+                <div class="mobile-menu-block-content">
+                    <a href="#" class="mobile-menu-block-link" onclick="openShipmentModal(); highlightActiveMobileMenu(this); closeMobileMenu();">Check Shipment Status</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-full flex-grow">
+        <section id="home-section" class="home-slider-container w-full mb-12 shadow-lg">
+            <img src="./images/Afritrike/2/IMG-20241206-WA0013.jpg" alt="Home Slider Image 1" class="home-slider-image active">
+            <img src="./images/Afritrike/2/wp2.jpg" alt="Home Slider Image 2" class="home-slider-image">
+            <img src="https://placehold.co/1920x550/FF8C00/FFFFFF?text=Empowering+Africa" alt="Home Slider Image 3" class="home-slider-image">
+            <div class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-black bg-opacity-40">
+                <h1 class="text-4xl sm:text-5xl lg:text-7xl font-bebas-neue text-white tracking-widest text-shadow-effect">
+                    Afritrike: Your Future in Mobility
+                </h1>
+                <p class="mt-4 text-lg sm:text-xl text-white max-w-2xl text-shadow-effect">
+                    Providing sustainable, affordable, and reliable electric tricycles for a greener Africa.
+                </p>
+            </div>
+        </section>
+
+        <section id="mission-vision-section" class="py-16 px-4 sm:px-6 lg:px-8 bg-white shadow-md rounded-lg mx-auto max-w-7xl mb-12">
+            <div class="max-w-6xl mx-auto">
+                <h2 class="text-4xl font-bebas-neue text-deep-green mb-10 text-center text-shadow-effect">Our Mission & Vision</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+
+                    <!-- Mission with background image -->
+                    <div class="relative rounded-lg shadow-lg overflow-hidden group">
+                        <img src="https://placehold.co/600x400/20B2AA/FFFFFF?text=Afritrike+Vision" alt="Mission Background" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300">
+                        <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6">
+                            <div class="bg-light-gray bg-opacity-80 p-8 rounded-lg shadow-xl text-center max-w-sm">
+                                <h3 class="text-2xl font-semibold text-deep-green mb-4">Our Mission</h3>
+                                <p class="text-dark-gray leading-relaxed">
+                                    Our mission is to provide high-quality automobiles and a diverse range of wholesale products to our clients globally. We strive to exceed customer expectations through reliable service, competitive pricing, and a commitment to excellence in the automobile trading industry.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vision with background image -->
+                    <div class="relative rounded-lg shadow-lg overflow-hidden group">
+                        <img src="https://placehold.co/600x400/0A4734/FFFFFF?text=Afritrike+Mission" alt="Vision Background" class="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-300">
+                        <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6">
+                            <div class="bg-light-gray bg-opacity-80 p-8 rounded-lg shadow-xl text-center max-w-sm">
+                                <h3 class="text-2xl font-semibold text-deep-green mb-4">Our Vision</h3>
+                                <p class="text-dark-gray leading-relaxed">
+                                    Our vision is to be a leading player in the global automobile trading market, recognized for our integrity, innovation, and customer-centric approach. We aim to expand our reach and continuously enhance our offerings to meet the evolving needs of our clients.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <section class="main-parallax-background w-full py-16">
+            <section id="about-us-section" class="w-full py-16 px-4 sm:px-6 lg:px-8 bg-white bg-opacity-90 shadow-md mb-12">
+                <div class="max-w-4xl mx-auto text-center">
+                    <h2 class="text-4xl font-bebas-neue text-deep-green mb-6 text-shadow-effect">About Afritrike</h2>
+                    <p class="text-lg text-dark-gray leading-relaxed mb-6">
+                        Afritrike is a leading provider of innovative and eco-friendly electric tricycles
+                        designed for diverse applications across Africa. We are committed to revolutionizing
+                        urban and rural transportation by offering reliable, affordable, and sustainable
+                        mobility solutions. Afritrike L.L.C - FZ, a premier name in the global automobile trading industry. We specialize in providing high-quality automobiles and a diverse range of wholesale products to clients around the world. Our commitment to excellence, customer satisfaction, and innovative practices sets us apart in the competitive marketplace.</p>
+                    </p>
+                </div>
+            </section>
+
+            <section id="single-video-section" class="w-full my-12 py-12 px-4 sm:px-6 lg:px-8 bg-white bg-opacity-80 rounded-lg mx-auto max-w-7xl">
+                <h2 class="text-4xl font-bebas-neue text-deep-green mb-8 text-center text-shadow-effect">Featured Video</h2>
+                <div class="relative max-w-4xl mx-auto video-container">
+                    <video class="w-full h-full object-cover" poster="https://placehold.co/1280x720/0A4734/FFFFFF?text=Click+to+Play" src="./images/mcontents/Afritrike_sun_feature.mp4" autoplay loop muted playsinline></video>
+                    <div class="video-overlay">
+                        <span class="video-overlay-text">New Models - Better Performence & More Savings</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="w-full py-16 px-4 sm:px-6 lg:px-8 bg-light-gray bg-opacity-90 shadow-md mb-12">
+                <div class="max-w-4xl mx-auto text-center">
+                    <p class="text-md text-medium-gray leading-relaxed">
+                        Our tricycles are built with durability and efficiency in mind,
+                        empowering individuals and businesses with practical and environmentally conscious
+                        alternatives. Join us in shaping a greener future for Africa.
+                    </p>
+                    <div class="mt-8">
+                        <button
+                            class="bg-dark-orange hover:bg-sea-green text-white font-bold py-3 px-6 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105"
+                            onclick="alert('Learn More about Afritrike button clicked!')"
+                        >
+                            Explore More
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="our-team-section" class="relative py-16 px-4 sm:px-6 lg:px-8 bg-white bg-opacity-80 shadow-md rounded-lg mx-auto max-w-7xl mb-12 our-team-overlay">
+                <div class="relative z-10 max-w-4xl mx-auto text-center">
+                    <h2 class="text-4xl font-bebas-neue text-dark-gray mb-10 text-shadow-effect">Meet Our Team</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div class="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center text-center transform hover:scale-105 transition duration-300">
+                            <h3 class="text-xl font-semibold text-deep-green mb-2">Leadership</h3>
+                            <p class="text-medium-gray text-sm">Our leadership team is composed of visionary individuals who have a deep understanding of the automobile and wholesale trading industries. Their strategic insights and decision-making skills drive our company forward, fostering growth and sustainability.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center text-center transform hover:scale-105 transition duration-300">
+                            <h3 class="text-xl font-semibold text-deep-green mb-2">Innovation and Development</h3>
+                            <p class="text-medium-gray text-sm">Innovation is at the heart of what we do. Our innovation and development team is constantly exploring new technologies and sustainable solutions to enhance our product offerings. Their forward-thinking approach keeps us ahead of the curve in the rapidly evolving automotive and trading landscapes.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center text-center transform hover:scale-105 transition duration-300">
+                            <h3 class="text-xl font-semibold text-deep-green mb-2">Customer Support</h3>
+                            <p class="text-medium-gray text-sm">Customer satisfaction is our top priority, and our customer support team is dedicated to providing exceptional service. They are always ready to assist with inquiries, resolve issues, and ensure that our clients have a positive experience with Afritrike.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center text-center transform hover:scale-105 transition duration-300">
+                        <h3 class="text-xl font-semibold text-deep-green mb-2">Sales and Marketing</h3>
+                        <p class="text-medium-gray text-sm">Our sales and marketing professionals are the bridge between our products and our customers. With a customer-centric approach, they work tirelessly to understand market needs and trends, ensuring that we offer the right products at competitive prices. Their efforts ensure that our brand remains at the forefront of the industry.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center text-center transform hover:scale-105 transition duration-300">
+                            <h3 class="text-xl font-semibold text-deep-green mb-2">Global Partnerships</h3>
+                            <p class="text-medium-gray text-sm">Our global partnerships team works to establish and maintain strong relationships with leading manufacturers and suppliers around the world. Their efforts enable us to provide high-quality products and services to our international clientele. At Afritrike, we believe that our team is our greatest asset. Together, we are committed to driving the company’s vision of excellence, sustainability, and customer satisfaction.</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center text-center transform hover:scale-105 transition duration-300">
+                        <h3 class="text-xl font-semibold text-deep-green mb-2">Technical and Operations</h3>
+                        <p class="text-medium-gray text-sm">Our technical and operations team is the backbone of Afritrike. They are responsible for the seamless execution of our services, from vehicle inspections to logistics management. Their meticulous attention to detail and commitment to quality ensure that we consistently deliver top-notch products and services.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </section> <section id="gallery-section" class="w-full my-12 py-12 bg-white">
+            <h2 class="text-4xl font-bebas-neue text-deep-green mb-8 text-center text-shadow-effect">Our Gallery</h2>
+            <div id="gallery-thumbnails-grid" class="gallery-thumbnail-grid max-w-7xl mx-auto">
+                </div>
+        </section>
+    </div>
+
+    <div id="floating-copyright" class="floating-copyright-bar rounded-b-3xl">
+        © 2025 Afritrike. All rights reserved.
+    </div>
+
+    <footer class="bg-dark-gray text-light-gray p-8 mt-12 w-full rounded-b-3xl rounded-t-[100px] overflow-hidden shadow-2xl">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 px-4">
+            <div>
+                <h3 class="text-xl font-bold text-sea-green mb-4">Contact Us</h3>
+                <p class="text-light-gray">Email: info@afritrike.com</p>
+                <p class="text-light-gray">Phone: +1 (123) 456-7890</p>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-bold text-sea-green mb-4">Address</h3>
+                <p class="text-light-gray">Afritrike HQ,</p>
+                <p class="text-light-gray">Innovation Hub, AF 12345</p>
+                <p class="text-light-gray">Africa</p>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-bold text-sea-green mb-4">Quick Links</h3>
+                <ul class="space-y-2">
+                    <li><a href="#home-section" class="text-light-gray hover:text-sea-green transition-colors">Home</a></li>
+                    <li><a href="#mission-vision-section" class="text-light-gray hover:text-sea-green transition-colors">Mission & Vision</a></li>
+                    <li><a href="#about-us-section" class="text-light-gray hover:text-sea-green transition-colors">About us</a></li>
+                    <li><a href="#single-video-section" class="text-light-gray hover:text-sea-green transition-colors">Video</a></li>
+                    <li><a href="#our-team-section" class="text-light-gray hover:text-sea-green transition-colors">Our Team</a></li>
+                    <li><a href="#gallery-section" class="text-light-gray hover:text-sea-green transition-colors">Gallery</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-bold text-sea-green mb-4">Follow Us</h3>
+                <div class="flex space-x-4 mb-4">
+                    <a href="#" class="text-light-gray hover:text-sea-green transition-colors"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.779 1.624 4.938 4.938.058 1.265.07 1.645.07 4.85s-.012 3.584-.07 4.85c-.148 3.252-1.624 4.779-4.938 4.938-1.265.058-1.645.07-4.85.07s-3.584-.012-4.85-.07c-3.252-.148-4.779-1.624-4.938-4.938-.058-1.265-.07-1.645-.07-4.85s.012-3.584.07-4.85c.148-3.252 1.624-4.779 4.938-4.938 1.265-.058 1.645.07 4.85-.07zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98C.014 8.333 0 8.741 0 12s.014 3.667.072 4.947c.2 4.358 2.618 6.78 6.98 6.98 1.28.058 1.689.072 4.947.072s3.667-.014 4.947-.072c4.358-.2 6.78-2.618 6.98-6.98.058-1.28.072-1.689.072-4.947s-.014-3.667-.072-4.947c-.2-4.358-2.618-6.78-6.98-6.98-1.28-.058-1.689-.072-4.947-.072zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.162 6.162 6.162 6.162-2.759 6.162-6.162-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4s1.791-4 4-4 4 1.791 4 4-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></a>
+                    <a href="#" class="text-light-gray hover:text-sea-green transition-colors"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M9 8h-3v4h3v12h5v-12h3.642l.358-4h-4v-1.667c0-.955.192-1.333 1.115-1.333h2.885v-5h-3.812c-3.233 0-4.187 2.195-4.187 4.573v2.427z"/></svg></a>
+                    <a href="#" class="text-light-gray hover:text-sea-green transition-colors"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.403 0-6.162 2.759-6.162 6.162 0 .483.055.953.15 1.404-5.131-.253-9.661-2.724-12.704-6.474-.531.91-.842 1.986-.842 3.132 0 2.14.965 4.033 2.431 5.142-.896-.028-1.73-.277-2.46-.64-.006.017-.006.033-.006.05 0 2.981 2.127 5.472 4.923 6.048-.41.111-.849.17-1.296.17-.318 0-.626-.031-.926-.088.783 2.443 3.05 4.222 5.766 4.269-2.105 1.647-4.76 2.636-7.675 2.636-.5 0-.996-.029-1.486-.086 3.033 1.956 6.666 3.099 10.557 3.099 12.675 0 19.608-10.429 19.608-19.608 0-.298-.006-.596-.014-.893.802-.578 1.499-1.29 2.054-2.105z"/></svg></a>
+                </div>
+                <button onclick="openRfqModal()" class="rfq-submit-button text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 mt-4 w-full">
+                    Send RFQ
+                </button>
+            </div>
+        </div>
+
+        <div class="text-center text-light-gray text-sm mt-8 pt-4 border-t border-deep-green">
+            <p>© 2025 Afritrike. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <div id="contactModal" class="modal">
+        <div class="modal-content w-11/12 md:w-3/4 lg:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <span class="close-button" onclick="closeContactModal()">×</span>
+
+            <div>
+                <h2 class="text-2xl font-bold text-dark-gray mb-4">Get in Touch</h2>
+                <form id="contactForm" class="space-y-4">
+                    <div>
+                        <label for="contactName" class="block text-dark-gray text-sm font-bold mb-1">Name:</label>
+                        <input type="text" id="contactName" name="contactName" class="shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline" required>
+                    </div>
+                    <div>
+                        <label for="contactEmail" class="block text-dark-gray text-sm font-bold mb-1">Email:</label>
+                        <input type="email" id="contactEmail" name="contactEmail" class="shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline" required>
+                    </div>
+                    <div>
+                        <label for="contactNumber" class="block text-dark-gray text-sm font-bold mb-1">Contact Number:</label>
+                        <input type="tel" id="contactNumber" name="contactNumber" class="shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline" required>
+                    </div>
+                    <div>
+                        <label for="yourMessage" class="block text-dark-gray text-sm font-bold mb-1">Your Message:</label>
+                        <textarea id="yourMessage" name="yourMessage" rows="4" class="shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline" required></textarea>
+                    </div>
+                    <div id="formStatus" class="text-sm font-semibold"></div>
+                    <button type="submit" class="contact-submit-button text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        Send Message
+                    </button>
+                </form>
+            </div>
+
+            <div class="flex flex-col items-center justify-center">
+                <h2 class="text-2xl font-bold text-dark-gray mb-4">Find Us</h2>
+                <div class="w-full h-64 md:h-full rounded-lg overflow-hidden shadow-md">
+                    <iframe
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3153.059293444211!2d-122.083851!3d37.4220656!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x808fb026c4b247f1%3A0x6b8d4e4c2f6d2e6!2sGoogleplex!5e0!3m2!1sen!2sus!4v1678901234567!5m2!1sen!2sus"
+                        width="100%"
+                        height="100%"
+                        style="border:0;"
+                        allowfullscreen=""
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade"
+                        title="Afritrike Office Location"
+                    ></iframe>
+                </div>
+                <p class="text-sm text-medium-gray mt-4 text-center">
+                    Visit us at our headquarters or use the map for directions.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div id="rfqModal" class="modal">
+        <div class="modal-content w-11/12 md:w-3/4 lg:w-1/2">
+            <span class="close-button" onclick="closeRfqModal()">×</span>
+            <h2 class="text-2xl font-bold text-dark-gray mb-4">Send Request for Quotation (RFQ)</h2>
+            <form id="rfqForm" class="space-y-4">
+                <div>
+                    <label for="rfqProductType" class="block text-dark-gray text-sm font-bold mb-1">Orderable Goods:</label>
+                    <select id="rfqProductType" name="rfqProductType" class="shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline" onchange="updateRfqSubSelection()" required>
+                        <option value="">-- Select Product Type --</option>
+                        <option value="Tricycle">Tricycle</option>
+                        <option value="Parts">Parts</option>
+                    </select>
+                </div>
+                <div id="rfqSubSelectionContainer" class="hidden">
+                    <label for="rfqSubProduct" class="block text-dark-gray text-sm font-bold mb-1">Sub-selection:</label>
+                    <select id="rfqSubProduct" name="rfqSubProduct" class="shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline" required>
+                        <option value="">-- Select Sub-item --</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="rfqUnits" class="block text-dark-gray text-sm font-bold mb-1">Units Required:</label>
+                    <input type="number" id="rfqUnits" name="rfqUnits" min="1" class="shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div id="rfqFormStatus" class="text-sm font-semibold"></div>
+                <button type="submit" class="rfq-submit-button text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        Send RFQ
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="shipmentModal" class="modal">
+        <div class="modal-content w-11/12 md:w-3/4 lg:w-1/2">
+            <span class="close-button" onclick="closeShipmentModal()">×</span>
+            <h2 class="text-2xl font-bold text-dark-gray mb-4">Check Shipment Status</h2>
+            <form id="shipmentForm" class="space-y-4">
+                <div>
+                    <label for="shipmentNumber" class="block text-dark-gray text-sm font-bold mb-1">Enter PO Number or Tracking Number:</label>
+                    <input type="text" id="shipmentNumber" name="shipmentNumber" class="shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div id="shipmentFormStatus" class="text-sm font-semibold"></div>
+                <button type="submit" class="rfq-submit-button text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                        Check Status
+                </button>
+            </form>
+            <div id="shipmentResult" class="hidden mt-6">
+                <h3 class="text-xl font-bold text-deep-green mb-2">Shipment Details</h3>
+                <div id="shipmentResultContent" class="space-y-2 bg-light-gray p-4 rounded-lg">
+                    <!-- Results will be populated here by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="gallerySlideshowModal" class="gallery-slideshow-modal">
+        <span class="gallery-modal-close-button" onclick="closeGallerySlideshowModal()">×</span>
+        <div id="gallery-slideshow-modal-container" class="gallery-slideshow-modal-content">
+            </div>
+        <button class="gallery-slideshow-nav-button prev" onclick="changeGallerySlide(-1)">❮</button>
+        <button class="gallery-slideshow-nav-button next" onclick="changeGallerySlide(1)">❯</button>
+    </div>
+
+    <script src="firebase-config.js"></script>
+    <script>
+        // Array of gallery image URLs
+        const galleryImages = [
+            './images/Afritrike/2/IMG-20241206-WA0021.jpg',
+            './images/Afritrike/2/IMG-20241206-WA0020.jpg',
+            './images/Afritrike/2/IMG-20241206-WA0019.jpg',
+            './images/Afritrike/2/IMG-20241206-WA0018.jpg',
+            './images/Afritrike/2/IMG-20241206-WA0017.jpg',
+            './images/Afritrike/2/IMG-20241206-WA0016.jpg',
+            './images/Afritrike/2/IMG-20241206-WA0015.jpg',
+            './images/Afritrike/2/IMG-20241206-WA0014.jpg',
+            './images/Afritrike/2/IMG-20241206-WA0013.jpg',
+            './images/6.jpg',
+            './images/BG_shadow2.jpg',
+            './images/BG_shadow1.jpg',
+            './images/Afritrike/1/BP2.jpg',
+            './images/Afritrike/1/BP3.jpg',
+            './images/Afritrike/1/BP4.jpg',
+            './images/Afritrike/1/BP5.jpg',
+            './images/Afritrike/1/BP6.jpg',
+            './images/Afritrike/1/BP7.jpg',
+            './images/Afritrike/1/BP8.jpg',
+            './images/Afritrike/1/BP9.jpg',
+            './images/Afritrike/1/BP10.jpg',
+            './images/Afritrike/1/BP11.jpg',
+            './images/Afritrike/1/BP12.jpg',
+            './images/Afritrike/1/BP1.jpg',
+            './images/Afritrike/1/BP1.jpg',
+            './images/Afritrike/1/BP1.jpg',
+            './images/Afritrike/1/BP1.jpg'
+        ];
+
+        // Data for RFQ dropdowns
+        const rfqGoodsOptions = {
+            Tricycle: ['Model1', 'Model2', 'Model3'],
+            Parts: ['Battery1', 'Battery2', 'Windshield', 'Mirror1', 'Mirror2', 'Solar1', 'Solar2', 'Tyre', 'Tube', 'Part1', 'Part2']
+        };
+
+        let gallerySlideshowInterval;
+        let currentGallerySlideIndex = 0;
+        let currentHomeSlideIndex = 0;
+
+        // Function to set up any slideshow (home or gallery modal)
+        const setupSlideshow = (containerId, imagesArray, interval = 3000, startIndex = 0) => {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            container.innerHTML = '';
+            if (containerId === 'gallery-slideshow-modal-container' && gallerySlideshowInterval) {
+                clearInterval(gallerySlideshowInterval);
+            }
+
+            const imgElements = imagesArray.map(src => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = containerId.replace('slideshow-', '').replace('-container', '') + ' image';
+
+                if (containerId === 'home-section') {
+                    img.classList.add('home-slider-image');
+                } else if (containerId === 'gallery-slideshow-modal-container') {
+                    img.classList.add('gallery-slideshow-modal-image');
+                }
+                container.appendChild(img);
+                return img;
+            });
+
+            if (imgElements.length === 0) return;
+
+            if (containerId === 'home-section') {
+                currentHomeSlideIndex = 0;
+                imgElements[currentHomeSlideIndex].classList.add('active');
+                setInterval(() => {
+                    imgElements[currentHomeSlideIndex].classList.remove('active');
+                    currentHomeSlideIndex = (currentHomeSlideIndex + 1) % imagesArray.length;
+                    imgElements[currentHomeSlideIndex].classList.add('active');
+                }, interval);
+            } else if (containerId === 'gallery-slideshow-modal-container') {
+                imgElements.forEach(img => img.classList.remove('active')); // Ensure clean slate on modal open
+                currentGallerySlideIndex = startIndex % imgElements.length;
+                imgElements[currentGallerySlideIndex].classList.add('active');
+                gallerySlideshowInterval = setInterval(() => {
+                    changeGallerySlide(1);
+                }, interval);
+            }
+        };
+
+        function changeGallerySlide(n) {
+            const imgElements = document.querySelectorAll('#gallery-slideshow-modal-container .gallery-slideshow-modal-image');
+            if (imgElements.length === 0) return;
+
+            imgElements.forEach(img => img.classList.remove('active')); // Ensure only one is active
+            currentGallerySlideIndex = (currentGallerySlideIndex + n + imgElements.length) % imgElements.length;
+            imgElements[currentGallerySlideIndex].classList.add('active');
+        }
+
+        // Function to render gallery thumbnails
+        function renderGalleryThumbnails() {
+            const gridContainer = document.getElementById('gallery-thumbnails-grid');
+            if (!gridContainer) return;
+
+            gridContainer.innerHTML = '';
+
+            galleryImages.forEach((src, index) => {
+                const thumbnailItem = document.createElement('div');
+                thumbnailItem.classList.add('gallery-thumbnail-item');
+                thumbnailItem.onclick = () => openGallerySlideshowModal(index);
+
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = `Gallery Thumbnail ${index + 1}`;
+
+                thumbnailItem.appendChild(img);
+                gridContainer.appendChild(thumbnailItem);
+            });
+        }
+
+        // Function to highlight active menu item (for desktop)
+        function highlightActiveMenu(element) {
+            document.querySelectorAll('nav ul li a').forEach(item => {
+                item.classList.remove('active-menu-item');
+            });
+            element.classList.add('active-menu-item');
+        }
+
+        // Function to highlight active mobile menu item
+        function highlightActiveMobileMenu(element) {
+            document.querySelectorAll('#mobile-menu .mobile-menu-block').forEach(block => {
+                block.classList.remove('active-menu-item-mobile');
+            });
+            element.closest('.mobile-menu-block').classList.add('active-menu-item-mobile');
+        }
+
+        // Functions to open/close mobile menu
+        function openMobileMenu() {
+            document.getElementById('mobile-menu').classList.remove('hidden');
+            document.getElementById('mobile-menu').classList.add('flex');
+        }
+
+        function closeMobileMenu() {
+            document.getElementById('mobile-menu').classList.add('hidden');
+            document.getElementById('mobile-menu').classList.remove('flex');
+        }
+
+        // Contact Us Modal Functions
+        window.openContactModal = function() {
+            const modal = document.getElementById('contactModal');
+            modal.classList.add('active');
+            document.addEventListener('keydown', handleEscapeKey);
+            modal.addEventListener('click', handleClickOutsideModal);
+        }
+
+        window.closeContactModal = function() {
+            const modal = document.getElementById('contactModal');
+            modal.classList.remove('active');
+            document.getElementById('contactForm').reset();
+            document.querySelectorAll('.error-message').forEach(el => el.remove());
+            document.querySelectorAll('input:invalid, textarea:invalid').forEach(el => el.classList.remove('border-red-500'));
+            document.removeEventListener('keydown', handleEscapeKey);
+            modal.removeEventListener('click', handleClickOutsideModal);
+        }
+
+        // Shipment Status Modal Functions
+        window.openShipmentModal = function() {
+            const modal = document.getElementById('shipmentModal');
+            modal.classList.add('active');
+            document.addEventListener('keydown', handleEscapeKey);
+            modal.addEventListener('click', handleClickOutsideModal);
+        };
+
+        window.closeShipmentModal = function() {
+            const modal = document.getElementById('shipmentModal');
+            modal.classList.remove('active');
+            document.getElementById('shipmentForm').reset();
+            document.getElementById('shipmentResult').classList.add('hidden');
+            document.getElementById('shipmentFormStatus').textContent = '';
+            document.removeEventListener('keydown', handleEscapeKey);
+            modal.removeEventListener('click', handleClickOutsideModal);
+        };
+
+        // RFQ Modal Functions
+        window.openRfqModal = function() {
+            const modal = document.getElementById('rfqModal');
+            modal.classList.add('active');
+            document.addEventListener('keydown', handleEscapeKey);
+            modal.addEventListener('click', handleClickOutsideModal);
+            document.getElementById('rfqForm').reset();
+            document.getElementById('rfqSubSelectionContainer').classList.add('hidden');
+            document.getElementById('rfqSubProduct').innerHTML = '<option value="">-- Select Sub-item --</option>';
+            document.getElementById('rfqFormStatus').textContent = '';
+        }
+
+        window.closeRfqModal = function() {
+            const modal = document.getElementById('rfqModal');
+            modal.classList.remove('active');
+            document.getElementById('rfqForm').reset();
+            document.querySelectorAll('.error-message').forEach(el => el.remove());
+            document.querySelectorAll('input:invalid, textarea:invalid').forEach(el => el.classList.remove('border-red-500'));
+            document.removeEventListener('keydown', handleEscapeKey);
+            modal.removeEventListener('click', handleClickOutsideModal);
+        }
+
+        // Function to update RFQ sub-selection dropdown
+        function updateRfqSubSelection() {
+            const productType = document.getElementById('rfqProductType').value;
+            const subSelectionContainer = document.getElementById('rfqSubSelectionContainer');
+            const subProductDropdown = document.getElementById('rfqSubProduct');
+
+            subProductDropdown.innerHTML = '<option value="">-- Select Sub-item --</option>';
+
+            if (productType && rfqGoodsOptions[productType]) {
+                rfqGoodsOptions[productType].forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    subProductDropdown.appendChild(option);
+                });
+                subSelectionContainer.classList.remove('hidden');
+            } else {
+                subSelectionContainer.classList.add('hidden');
+            }
+        }
+
+        // Centralized function to handle Escape key press for modals
+        function handleEscapeKey(event) {
+            if (event.key === 'Escape') {
+                if (document.getElementById('contactModal').classList.contains('active')) {
+                    closeContactModal();
+                } else if (document.getElementById('rfqModal').classList.contains('active')) {
+                    closeRfqModal();
+                } else if (document.getElementById('gallerySlideshowModal').classList.contains('active')) {
+                    closeGallerySlideshowModal();
+                } else if (document.getElementById('shipmentModal').classList.contains('active')) {
+                    closeShipmentModal();
+                }
+            }
+        }
+
+        // Centralized function to handle clicks outside any modal
+        function handleClickOutsideModal(event) {
+            if (event.target.classList.contains('modal') || event.target.classList.contains('gallery-slideshow-modal')) {
+                if (document.getElementById('contactModal').classList.contains('active')) {
+                    closeContactModal();
+                } else if (document.getElementById('rfqModal').classList.contains('active')) {
+                    closeRfqModal();
+                } else if (document.getElementById('gallerySlideshowModal').classList.contains('active')) {
+                    closeGallerySlideshowModal();
+                } else if (document.getElementById('shipmentModal').classList.contains('active')) {
+                    closeShipmentModal();
+                }
+            }
+        }
+
+        // ...existing code...
+
+function openGallerySlideshowModal(startIndex = 0) {
+    const modal = document.getElementById('gallerySlideshowModal');
+    modal.classList.add('active');
+    setupSlideshow('gallery-slideshow-modal-container', galleryImages, 4000, startIndex);
+
+    // Pause background scroll
+    document.body.style.overflow = 'hidden';
+
+    // Set the correct image as active
+    const imgElements = document.querySelectorAll('#gallery-slideshow-modal-container .gallery-slideshow-modal-image');
+    imgElements.forEach(img => img.classList.remove('active'));
+    if (imgElements[startIndex]) {
+        imgElements[startIndex].classList.add('active');
+        currentGallerySlideIndex = startIndex;
+    }
+
+    // Add event listeners for closing modal
+    document.addEventListener('keydown', handleEscapeKey);
+    modal.addEventListener('click', handleClickOutsideModal);
+}
+
+function closeGallerySlideshowModal() {
+    const modal = document.getElementById('gallerySlideshowModal');
+    modal.classList.remove('active');
+    document.body.style.overflow = '';
+    if (gallerySlideshowInterval) clearInterval(gallerySlideshowInterval);
+    document.removeEventListener('keydown', handleEscapeKey);
+    modal.removeEventListener('click', handleClickOutsideModal);
+}
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initial active menu item setup
+            document.getElementById('menu-home').classList.add('active-menu-item');
+            document.querySelector('.mobile-menu-block[data-menu-id="mobile-home"]').classList.add('active-menu-item-mobile');
+            // Shrink navbar on scroll
+            const navbar = document.getElementById('main-navbar');
+            window.addEventListener('scroll', () => {
+            if (window.scrollY > 40) {
+            navbar.classList.add('py-1', 'shadow-md');
+            navbar.classList.remove('py-3', 'shadow-xl');
+            } else {
+            navbar.classList.remove('py-1', 'shadow-md');
+            navbar.classList.add('py-3', 'shadow-xl');
+            }
+            });
+
+            // Event listeners for mobile menu button
+            document.getElementById('mobile-menu-button').addEventListener('click', openMobileMenu);
+            document.getElementById('close-mobile-menu-button').addEventListener('click', closeMobileMenu);
+
+            // Close mobile menu when any mobile menu block link is clicked
+            document.querySelectorAll('.mobile-menu-block-content a').forEach(item => {
+                item.addEventListener('click', closeMobileMenu);
+            });
+
+            // Setup for the main home slider
+            setupSlideshow('home-section', [
+                './images/Afritrike/slider/1.jpg',
+                './images/Afritrike/slider/2.jpg',
+                './images/Afritrike/slider/3.jpg',
+                './images/Afritrike/slider/3a.jpg',
+                './images/Afritrike/slider/4.jpg',
+                './images/Afritrike/slider/5.jpg',
+                './images/Afritrike/slider/6.jpg',
+                './images/Afritrike/slider/7.jpg',
+                './images/Afritrike/slider/8.jpg',
+                './images/Afritrike/slider/9.jpg'
+            ], 4000);
+
+            // Render gallery thumbnails on page load
+            renderGalleryThumbnails();
+
+            // Handle form submission for Contact Us modal
+            document.getElementById('contactForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                let isValid = true;
+                document.querySelectorAll('.error-message').forEach(el => el.remove());
+                document.querySelectorAll('input:invalid, textarea:invalid').forEach(el => el.classList.remove('border-red-500'));
+
+                const nameInput = document.getElementById('contactName');
+                const emailInput = document.getElementById('contactEmail');
+                const numberInput = document.getElementById('contactNumber');
+                const messageInput = document.getElementById('yourMessage');
+                const formStatus = document.getElementById('formStatus');
+
+                formStatus.textContent = '';
+
+                if (!nameInput.value) {
+                    isValid = false;
+                    nameInput.classList.add('border-red-500');
+                    formStatus.textContent = 'Please fill in all required fields.';
+                    formStatus.classList.add('text-red-500');
+                }
+                if (!emailInput.value || !emailInput.checkValidity()) {
+                    isValid = false;
+                    emailInput.classList.add('border-red-500');
+                    formStatus.textContent = 'Please enter a valid email address.';
+                    formStatus.classList.add('text-red-500');
+                }
+                if (!numberInput.value) {
+                    isValid = false;
+                    numberInput.classList.add('border-red-500');
+                    formStatus.textContent = 'Contact Number is required.';
+                    formStatus.classList.add('text-red-500');
+                }
+                if (!messageInput.value) {
+                    isValid = false;
+                    messageInput.classList.add('border-red-500');
+                    formStatus.textContent = 'Your message is required.';
+                    formStatus.classList.add('text-red-500');
+                }
+
+                if (isValid) {
+                    console.log('Contact Form Submitted:', {
+                        name: nameInput.value,
+                        email: emailInput.value,
+                        number: numberInput.value,
+                        message: messageInput.value
+                    });
+                    formStatus.textContent = 'Thank you for your message! We will get back to you soon.';
+                    formStatus.classList.remove('text-red-500');
+                    formStatus.classList.add('text-sea-green');
+                    setTimeout(() => {
+                        closeContactModal();
+                        formStatus.textContent = '';
+                    }, 2000);
+                }
+            });
+
+            // Handle Shipment Status form submission
+            document.getElementById('shipmentForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+                const shipmentNumber = document.getElementById('shipmentNumber').value.trim();
+                const formStatus = document.getElementById('shipmentFormStatus');
+                const resultDiv = document.getElementById('shipmentResult');
+                const resultContent = document.getElementById('shipmentResultContent');
+
+                formStatus.textContent = '';
+                resultDiv.classList.add('hidden');
+
+                if (!shipmentNumber) {
+                    formStatus.textContent = 'Please enter a PO or Tracking Number.';
+                    formStatus.classList.add('text-red-500');
+                    return;
+                }
+
+                formStatus.textContent = 'Searching...';
+                formStatus.classList.remove('text-red-500', 'text-sea-green');
+
+                const shipmentsCollection = db.collection('shipments');
+                const poQuery = shipmentsCollection.where('poNumber', '==', shipmentNumber).get();
+                const trackingQuery = shipmentsCollection.where('trackingNumber', '==', shipmentNumber).get();
+
+                Promise.all([poQuery, trackingQuery]).then(results => {
+                    const poResults = results[0];
+                    const trackingResults = results[1];
+
+                    let data = null;
+                    if (!poResults.empty) {
+                        data = poResults.docs[0].data();
+                    } else if (!trackingResults.empty) {
+                        data = trackingResults.docs[0].data();
+                    }
+
+                    if (data) {
+                        const statusColors = {
+                            'Pending': 'bg-gray-200 text-gray-800',
+                            'In Transit': 'bg-yellow-200 text-yellow-800',
+                            'Out for Delivery': 'bg-blue-200 text-blue-800',
+                            'Delivered': 'bg-green-200 text-green-800',
+                            'Exception': 'bg-red-200 text-red-800',
+                        };
+                        const statusColor = statusColors[data.status] || 'bg-gray-200 text-gray-800';
+
+                        resultContent.innerHTML = `
+                            <p><strong>PO Number:</strong> ${data.poNumber}</p>
+                            <p><strong>Tracking Number:</strong> ${data.trackingNumber}</p>
+                            <p><strong>Status:</strong> <span class="py-1 px-3 rounded-full text-xs ${statusColor}">${data.status}</span></p>
+                        `;
+                        resultDiv.classList.remove('hidden');
+                        formStatus.textContent = 'Shipment found.';
+                        formStatus.classList.add('text-sea-green');
+                    } else {
+                        formStatus.textContent = 'No shipment found with that number.';
+                        formStatus.classList.add('text-red-500');
+                    }
+                }).catch(err => {
+                    console.error("Error searching for shipment:", err);
+                    formStatus.textContent = 'An error occurred. Please try again.';
+                    formStatus.classList.add('text-red-500');
+                });
+            });
+
+            // Handle RFQ form submission
+            document.getElementById('rfqForm').addEventListener('submit', function(event) {
+                event.preventDefault();
+
+                let isValid = true;
+                const productType = document.getElementById('rfqProductType').value;
+                const subProduct = document.getElementById('rfqSubProduct').value;
+                const units = document.getElementById('rfqUnits').value;
+                const rfqFormStatus = document.getElementById('rfqFormStatus');
+
+                rfqFormStatus.textContent = '';
+                document.querySelectorAll('#rfqForm select, #rfqForm input').forEach(el => el.classList.remove('border-red-500'));
+
+                if (!productType) {
+                    isValid = false;
+                    document.getElementById('rfqProductType').classList.add('border-red-500');
+                    rfqFormStatus.textContent = 'Please select a product type.';
+                    rfqFormStatus.classList.add('text-red-500');
+                }
+                if (productType && !subProduct && document.getElementById('rfqSubSelectionContainer').classList.contains('hidden') === false) {
+                    isValid = false;
+                    document.getElementById('rfqSubProduct').classList.add('border-red-500');
+                    rfqFormStatus.textContent = 'Please select a sub-item.';
+                    rfqFormStatus.classList.add('text-red-500');
+                }
+                if (!units || parseInt(units) <= 0) {
+                    isValid = false;
+                    document.getElementById('rfqUnits').classList.add('border-red-500');
+                    rfqFormStatus.textContent = 'Please enter a valid number of units.';
+                    rfqFormStatus.classList.add('text-red-500');
+                }
+
+                if (isValid) {
+                    console.log('RFQ Form Submitted:', {
+                        productType: productType,
+                        subProduct: subProduct,
+                        units: units
+                    });
+                    rfqFormStatus.textContent = 'Your RFQ has been sent successfully!';
+                    rfqFormStatus.classList.remove('text-red-500');
+                    rfqFormStatus.classList.add('text-sea-green');
+                    setTimeout(() => {
+                        closeRfqModal();
+                        rfqFormStatus.textContent = '';
+                    }, 2000);
+                }
+            });
+
+            // Get elements for floating copyright
+            const floatingCopyright = document.getElementById('floating-copyright');
+            const gallerySection = document.getElementById('gallery-section');
+            const footer = document.querySelector('footer');
+
+            function handleScrollFloatingCopyright() {
+                const galleryRect = gallerySection.getBoundingClientRect();
+                const footerRect = footer.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+
+                const showFloating = galleryRect.top < viewportHeight && galleryRect.bottom > 0 && footerRect.top > viewportHeight - floatingCopyright.offsetHeight;
+
+                if (showFloating) {
+                    floatingCopyright.classList.add('active');
+                } else {
+                    floatingCopyright.classList.remove('active');
+                }
+            }
+
+            window.addEventListener('scroll', handleScrollFloatingCopyright);
+            window.addEventListener('resize', handleScrollFloatingCopyright);
+            handleScrollFloatingCopyright();
+        });
+    </script>
+</body>
+</html>
