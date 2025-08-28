@@ -144,6 +144,9 @@
     <script src="firebase-config.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM fully loaded. Initializing admin script...');
+
+            // --- Element Selection ---
             const loginSection = document.getElementById('login-section');
             const adminContent = document.getElementById('admin-content');
             const loginButton = document.getElementById('login-button');
@@ -151,44 +154,79 @@
             const userInfo = document.getElementById('user-info');
             const userName = document.getElementById('user-name');
 
-            // Set initial visibility
-            loginSection.classList.remove('hidden');
-            adminContent.classList.add('hidden');
-            userInfo.classList.remove('flex');
+            if(!loginButton) {
+                console.error('FATAL: Login button not found. Aborting.');
+                return;
+            }
+            console.log('All required elements found.');
 
-            const authProvider = new firebase.auth.GoogleAuthProvider();
-
-            loginButton.addEventListener('click', () => {
-                auth.signInWithPopup(authProvider).catch(err => console.error(err));
-            });
-
-            logoutButton.addEventListener('click', () => {
-                auth.signOut();
-            });
-
-            auth.onAuthStateChanged(user => {
-                if (user) {
-                    const userDomain = user.email.split('@')[1];
-                    const authorizedDomains = ['grrgl.com', 'mil-serve.com'];
-                    if (authorizedDomains.includes(userDomain)) {
-                        loginSection.classList.add('hidden');
-                        adminContent.classList.remove('hidden');
-                        userInfo.classList.add('flex');
-                        userName.textContent = user.displayName || user.email;
-                        initApp(); // Initialize Firestore logic
-                    } else {
-                        alert('Access denied. You must use an authorized domain account.');
-                        auth.signOut();
-                    }
-                } else {
-                    adminContent.classList.add('hidden');
-                    loginSection.classList.remove('hidden');
-                    userInfo.classList.remove('flex');
-                    userName.textContent = '';
+            // --- Firebase Auth Setup ---
+            try {
+                if (!firebase) {
+                    console.error('FATAL: Firebase is not defined. Check SDK script tags.');
+                    alert('Error: Firebase scripts failed to load.');
+                    return;
                 }
-            });
+                console.log('Firebase object found. Version:', firebase.SDK_VERSION);
 
-            const initApp = () => {
+                const auth = firebase.auth();
+                const db = firebase.firestore();
+                console.log('Firebase auth and firestore objects initialized.');
+
+                const authProvider = new firebase.auth.GoogleAuthProvider();
+                console.log('Google Auth Provider created.');
+
+                loginButton.addEventListener('click', () => {
+                    console.log('Login button clicked. Calling signInWithPopup...');
+                    auth.signInWithPopup(authProvider).catch(err => {
+                        console.error('signInWithPopup Error:', err);
+                        alert(`Login failed: ${err.message}`);
+                    });
+                });
+                console.log('Login button event listener attached.');
+
+                logoutButton.addEventListener('click', () => {
+                    console.log('Logout button clicked.');
+                    auth.signOut();
+                });
+                console.log('Logout button event listener attached.');
+
+                auth.onAuthStateChanged(user => {
+                    console.log('Auth state changed. Current user:', user ? user.email : 'null');
+                    if (user) {
+                        const userDomain = user.email.split('@')[1];
+                        const authorizedDomains = ['grrgl.com', 'mil-serve.com'];
+                        console.log(`Checking if user domain '${userDomain}' is in authorized list: [${authorizedDomains.join(', ')}]`);
+
+                        if (authorizedDomains.includes(userDomain)) {
+                            console.log('User is AUTHORIZED.');
+                            loginSection.classList.add('hidden');
+                            adminContent.classList.remove('hidden');
+                            userInfo.classList.add('flex');
+                            userName.textContent = user.displayName || user.email;
+                            initApp(db); // Initialize Firestore logic, passing db instance
+                        } else {
+                            console.warn('User is NOT AUTHORIZED. Signing out.');
+                            alert('Access denied. You must use an authorized domain account.');
+                            auth.signOut();
+                        }
+                    } else {
+                        console.log('No user signed in. Showing login section.');
+                        adminContent.classList.add('hidden');
+                        loginSection.classList.remove('hidden');
+                        userInfo.classList.remove('flex');
+                        userName.textContent = '';
+                    }
+                });
+                console.log('onAuthStateChanged listener attached.');
+
+            } catch(e) {
+                console.error('FATAL ERROR during Firebase setup:', e);
+                alert('A critical error occurred. Check the developer console.');
+            }
+
+            const initApp = (db) => {
+                console.log('initApp() called. Setting up Firestore listeners...');
                 const shipmentsCollection = db.collection('shipments');
                 const shipmentTableBody = document.getElementById('shipment-table-body');
                 const shipmentForm = document.getElementById('shipment-form');
@@ -232,7 +270,7 @@
                     shipmentTableBody.appendChild(tr);
                 };
 
-                shipmentsCollection.orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+                shipmentsCollection.onSnapshot(snapshot => {
                     shipmentTableBody.innerHTML = '';
                     snapshot.docs.forEach(renderRow);
                 }, err => {
@@ -249,7 +287,7 @@
 
                     const promise = id
                         ? shipmentsCollection.doc(id).update({ poNumber, trackingNumber, status })
-                        : shipmentsCollection.add({ poNumber, trackingNumber, status, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+                        : shipmentsCollection.add({ poNumber, trackingNumber, status });
 
                     promise.then(() => resetForm()).catch(err => console.error(err));
                 });
