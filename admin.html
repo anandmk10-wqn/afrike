@@ -144,8 +144,6 @@
     <script src="firebase-config.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM fully loaded. Initializing admin script...');
-
             // --- Element Selection ---
             const loginSection = document.getElementById('login-section');
             const adminContent = document.getElementById('admin-content');
@@ -154,129 +152,77 @@
             const userInfo = document.getElementById('user-info');
             const userName = document.getElementById('user-name');
 
-            if(!loginButton) {
-                console.error('FATAL: Login button not found. Aborting.');
-                return;
-            }
-            console.log('All required elements found.');
-
             // --- Firebase Auth Setup ---
             try {
                 if (!firebase) {
-                    console.error('FATAL: Firebase is not defined. Check SDK script tags.');
                     alert('Error: Firebase scripts failed to load.');
                     return;
                 }
-                console.log('Firebase object found. Version:', firebase.SDK_VERSION);
 
                 const auth = firebase.auth();
                 const db = firebase.firestore();
-                console.log('Firebase auth and firestore objects initialized.');
-
                 const authProvider = new firebase.auth.GoogleAuthProvider();
-                console.log('Google Auth Provider created.');
 
-                loginButton.addEventListener('click', () => {
-                    console.log('Login button clicked. Calling signInWithPopup...');
-                    auth.signInWithPopup(authProvider).catch(err => {
-                        console.error('signInWithPopup Error:', err);
-                        alert(`Login failed: ${err.message}`);
-                    });
-                });
-                console.log('Login button event listener attached.');
-
-                logoutButton.addEventListener('click', () => {
-                    console.log('Logout button clicked.');
-                    auth.signOut();
-                });
-                console.log('Logout button event listener attached.');
+                loginButton.addEventListener('click', () => auth.signInWithPopup(authProvider).catch(err => alert(`Login failed: ${err.message}`)));
+                logoutButton.addEventListener('click', () => auth.signOut());
 
                 auth.onAuthStateChanged(user => {
-                    console.log('Auth state changed. Current user:', user ? user.email : 'null');
                     if (user) {
                         const userDomain = user.email.split('@')[1];
                         const authorizedDomains = ['grrgl.com', 'mil-serve.com'];
-                        console.log(`Checking if user domain '${userDomain}' is in authorized list: [${authorizedDomains.join(', ')}]`);
-
                         if (authorizedDomains.includes(userDomain)) {
-                            console.log('User is AUTHORIZED.');
                             loginSection.classList.add('hidden');
                             adminContent.classList.remove('hidden');
                             userInfo.classList.add('flex');
                             userName.textContent = user.displayName || user.email;
-                            initApp(db); // Initialize Firestore logic, passing db instance
+                            initApp(db);
                         } else {
-                            console.warn('User is NOT AUTHORIZED. Signing out.');
                             alert('Access denied. You must use an authorized domain account.');
                             auth.signOut();
                         }
                     } else {
-                        console.log('No user signed in. Showing login section.');
                         adminContent.classList.add('hidden');
                         loginSection.classList.remove('hidden');
                         userInfo.classList.remove('flex');
                         userName.textContent = '';
                     }
                 });
-                console.log('onAuthStateChanged listener attached.');
-
             } catch(e) {
                 console.error('FATAL ERROR during Firebase setup:', e);
                 alert('A critical error occurred. Check the developer console.');
             }
 
             const initApp = (db) => {
-                console.log('initApp() called. Setting up Firestore listeners...');
+                // --- Shipment Management ---
                 const shipmentsCollection = db.collection('shipments');
                 const shipmentTableBody = document.getElementById('shipment-table-body');
                 const shipmentForm = document.getElementById('shipment-form');
-                const formTitle = document.getElementById('form-title');
-                const submitButton = document.getElementById('submit-button');
-                const cancelButton = document.getElementById('cancel-button');
+                const shipmentFormTitle = document.getElementById('form-title');
+                const shipmentSubmitButton = document.getElementById('submit-button');
+                const shipmentCancelButton = document.getElementById('cancel-button');
                 const shipmentIdField = document.getElementById('shipment-id');
 
-                const resetForm = () => {
+                const resetShipmentForm = () => {
                     shipmentForm.reset();
-                    formTitle.textContent = 'Add New Shipment';
-                    submitButton.textContent = 'Add Shipment';
-                    cancelButton.classList.add('hidden');
+                    shipmentFormTitle.textContent = 'Add New Shipment';
+                    shipmentSubmitButton.textContent = 'Add Shipment';
+                    shipmentCancelButton.classList.add('hidden');
                     shipmentIdField.value = '';
-                };
-
-                const renderRow = (doc) => {
-                    const data = doc.data();
-                    const tr = document.createElement('tr');
-                    tr.setAttribute('data-id', doc.id);
-                    tr.classList.add('border-b', 'hover:bg-gray-50');
-
-                    const statusColors = {
-                        'Pending': 'bg-gray-200 text-gray-800',
-                        'In Transit': 'bg-yellow-200 text-yellow-800',
-                        'Out for Delivery': 'bg-blue-200 text-blue-800',
-                        'Delivered': 'bg-green-200 text-green-800',
-                        'Exception': 'bg-red-200 text-red-800',
-                    };
-                    const statusColor = statusColors[data.status] || 'bg-gray-200 text-gray-800';
-
-                    tr.innerHTML = `
-                        <td class="py-3 px-4">${data.poNumber}</td>
-                        <td class="py-3 px-4">${data.trackingNumber}</td>
-                        <td class="py-3 px-4"><span class="${statusColor} py-1 px-3 rounded-full text-xs">${data.status}</span></td>
-                        <td class="py-3 px-4 text-center">
-                            <button class="edit-btn text-sea-green hover:text-deep-green font-semibold mr-4">Edit</button>
-                            <button class="delete-btn text-red-500 hover:text-red-700 font-semibold">Delete</button>
-                        </td>
-                    `;
-                    shipmentTableBody.appendChild(tr);
                 };
 
                 shipmentsCollection.onSnapshot(snapshot => {
                     shipmentTableBody.innerHTML = '';
-                    snapshot.docs.forEach(renderRow);
-                }, err => {
-                    console.error("Error fetching shipments:", err);
-                    alert("Could not fetch shipment data.");
-                });
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        const tr = document.createElement('tr');
+                        tr.setAttribute('data-id', doc.id);
+                        tr.classList.add('border-b', 'hover:bg-gray-50');
+                        const statusColors = {'Pending': 'bg-gray-200 text-gray-800','In Transit': 'bg-yellow-200 text-yellow-800','Out for Delivery': 'bg-blue-200 text-blue-800','Delivered': 'bg-green-200 text-green-800','Exception': 'bg-red-200 text-red-800'};
+                        const statusColor = statusColors[data.status] || 'bg-gray-200 text-gray-800';
+                        tr.innerHTML = `<td class="py-3 px-4">${data.poNumber}</td><td class="py-3 px-4">${data.trackingNumber}</td><td class="py-3 px-4"><span class="${statusColor} py-1 px-3 rounded-full text-xs">${data.status}</span></td><td class="py-3 px-4 text-center"><button class="edit-btn text-sea-green hover:text-deep-green font-semibold mr-4">Edit</button><button class="delete-btn text-red-500 hover:text-red-700 font-semibold">Delete</button></td>`;
+                        shipmentTableBody.appendChild(tr);
+                    });
+                }, err => alert("Could not fetch shipment data."));
 
                 shipmentForm.addEventListener('submit', e => {
                     e.preventDefault();
@@ -284,19 +230,14 @@
                     const trackingNumber = shipmentForm['tracking-number'].value;
                     const status = shipmentForm.status.value;
                     const id = shipmentIdField.value;
-
-                    const promise = id
-                        ? shipmentsCollection.doc(id).update({ poNumber, trackingNumber, status })
-                        : shipmentsCollection.add({ poNumber, trackingNumber, status });
-
-                    promise.then(() => resetForm()).catch(err => console.error(err));
+                    const promise = id ? shipmentsCollection.doc(id).update({ poNumber, trackingNumber, status }) : shipmentsCollection.add({ poNumber, trackingNumber, status });
+                    promise.then(resetShipmentForm).catch(err => console.error(err));
                 });
 
                 shipmentTableBody.addEventListener('click', e => {
                     const row = e.target.closest('tr');
                     if (!row) return;
                     const id = row.dataset.id;
-
                     if (e.target.matches('.edit-btn')) {
                         shipmentsCollection.doc(id).get().then(doc => {
                             const data = doc.data();
@@ -304,13 +245,12 @@
                             shipmentForm['po-number'].value = data.poNumber;
                             shipmentForm['tracking-number'].value = data.trackingNumber;
                             shipmentForm.status.value = data.status;
-                            formTitle.textContent = 'Edit Shipment';
-                            submitButton.textContent = 'Update Shipment';
-                            cancelButton.classList.remove('hidden');
+                            shipmentFormTitle.textContent = 'Edit Shipment';
+                            shipmentSubmitButton.textContent = 'Update Shipment';
+                            shipmentCancelButton.classList.remove('hidden');
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                         });
                     }
-
                     if (e.target.matches('.delete-btn')) {
                         if (confirm('Are you sure you want to delete this shipment?')) {
                             shipmentsCollection.doc(id).delete().catch(err => console.error(err));
@@ -318,93 +258,94 @@
                     }
                 });
 
-                cancelButton.addEventListener('click', resetForm);
+                shipmentCancelButton.addEventListener('click', resetShipmentForm);
 
                 // --- RFQ Management ---
                 const rfqOptionsCollection = db.collection('rfqOptions');
                 const categoriesContainer = document.getElementById('categories-container');
                 const addCategoryForm = document.getElementById('add-category-form');
+                let currentEditingItem = { categoryId: null, originalItem: null };
 
-                const renderCategoryCard = (doc) => {
-                    const categoryId = doc.id;
-                    const category = doc.data();
-                    const card = document.createElement('div');
-                    card.className = 'category-card bg-light-gray p-4 rounded-lg shadow';
-                    card.setAttribute('data-id', categoryId);
-
-                    let itemsHtml = '<ul class="space-y-2 text-sm">';
-                    if (category.items && category.items.length > 0) {
-                        category.items.forEach(item => {
-                            itemsHtml += `<li class="flex justify-between items-center p-1 bg-white rounded">${item} <button class="delete-item-btn text-red-500 hover:text-red-700 text-xs font-semibold" data-item="${item}">REMOVE</button></li>`;
+                const renderRfqUI = () => {
+                    rfqOptionsCollection.onSnapshot(snapshot => {
+                        categoriesContainer.innerHTML = '';
+                        snapshot.docs.forEach(doc => {
+                            const categoryId = doc.id;
+                            const category = doc.data();
+                            const card = document.createElement('div');
+                            card.className = 'category-card bg-light-gray p-4 rounded-lg shadow';
+                            card.setAttribute('data-id', categoryId);
+                            let itemsHtml = '<ul class="space-y-2 text-sm">';
+                            if (category.items && category.items.length > 0) {
+                                category.items.forEach(item => {
+                                    itemsHtml += `<li class="flex justify-between items-center p-2 bg-white rounded"><span>${item.name} (Qty: ${item.quantity})</span><div><button class="edit-item-btn text-sea-green hover:text-deep-green text-xs font-semibold mr-2" data-name="${item.name}" data-quantity="${item.quantity}">EDIT</button><button class="delete-item-btn text-red-500 hover:text-red-700 text-xs font-semibold" data-name="${item.name}" data-quantity="${item.quantity}">REMOVE</button></div></li>`;
+                                });
+                            } else {
+                                itemsHtml += '<li class="text-gray-500">No items yet.</li>';
+                            }
+                            itemsHtml += '</ul>';
+                            card.innerHTML = `<div class="flex justify-between items-center mb-3"><h5 class="text-lg font-bold text-deep-green">${categoryId}</h5><button class="delete-category-btn text-red-500 hover:text-red-700 font-semibold">Delete Category</button></div><div class="mb-4"><h6 class="font-semibold mb-2 text-dark-gray">Items:</h6>${itemsHtml}</div><form class="add-item-form"><div class="flex items-center space-x-2"><input type="text" class="item-name-input input-field flex-grow text-sm" placeholder="New item name" required><input type="number" class="item-quantity-input input-field w-20 text-sm" placeholder="Qty" required></div><button type="submit" class="btn btn-primary text-sm mt-2 w-full">Add Item</button><button type="button" class="cancel-edit-item-btn btn bg-gray-300 hover:bg-gray-400 text-sm mt-2 w-full hidden">Cancel Edit</button></form>`;
+                            categoriesContainer.appendChild(card);
                         });
-                    } else {
-                        itemsHtml += '<li class="text-gray-500">No items yet.</li>';
-                    }
-                    itemsHtml += '</ul>';
-
-                    card.innerHTML = `
-                        <div class="flex justify-between items-center mb-3">
-                            <h5 class="text-lg font-bold text-deep-green">${categoryId}</h5>
-                            <button class="delete-category-btn text-red-500 hover:text-red-700 font-semibold">Delete Category</button>
-                        </div>
-                        <div class="mb-4">
-                            <h6 class="font-semibold mb-2 text-dark-gray">Items:</h6>
-                            ${itemsHtml}
-                        </div>
-                        <form class="add-item-form flex items-center space-x-2">
-                            <input type="text" class="input-field flex-grow text-sm" placeholder="New item name" required>
-                            <button type="submit" class="btn btn-primary text-sm">Add Item</button>
-                        </form>
-                    `;
-                    categoriesContainer.appendChild(card);
+                    });
                 };
 
-                rfqOptionsCollection.onSnapshot(snapshot => {
-                    categoriesContainer.innerHTML = '';
-                    snapshot.docs.forEach(renderCategoryCard);
-                });
+                renderRfqUI();
 
                 addCategoryForm.addEventListener('submit', e => {
                     e.preventDefault();
                     const newCategoryName = addCategoryForm['new-category-name'].value.trim();
                     if (newCategoryName) {
-                        rfqOptionsCollection.doc(newCategoryName).set({ items: [] })
-                            .then(() => addCategoryForm.reset())
-                            .catch(err => console.error("Error adding category:", err));
+                        rfqOptionsCollection.doc(newCategoryName).set({ items: [] }).then(() => addCategoryForm.reset()).catch(err => console.error("Error adding category:", err));
                     }
                 });
 
                 categoriesContainer.addEventListener('click', e => {
+                    e.preventDefault();
                     const card = e.target.closest('.category-card');
                     if (!card) return;
                     const categoryId = card.dataset.id;
+                    const form = card.querySelector('.add-item-form');
+                    const itemNameInput = form.querySelector('.item-name-input');
+                    const itemQuantityInput = form.querySelector('.item-quantity-input');
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const cancelEditBtn = form.querySelector('.cancel-edit-item-btn');
 
-                    // Handle Category Deletion
+                    const resetItemForm = () => {
+                        form.reset();
+                        submitBtn.textContent = 'Add Item';
+                        cancelEditBtn.classList.add('hidden');
+                        currentEditingItem = { categoryId: null, originalItem: null };
+                    };
+
                     if (e.target.matches('.delete-category-btn')) {
-                        if (confirm(`Are you sure you want to delete the "${categoryId}" category and all its items?`)) {
-                            rfqOptionsCollection.doc(categoryId).delete().catch(err => console.error(err));
-                        }
-                    }
-
-                    // Handle Item Addition
-                    if (e.target.closest('.add-item-form')) {
-                        e.preventDefault();
-                        const form = e.target.closest('.add-item-form');
-                        const newItemName = form.querySelector('input').value.trim();
-                        if (newItemName) {
-                            rfqOptionsCollection.doc(categoryId).update({
-                                items: firebase.firestore.FieldValue.arrayUnion(newItemName)
-                            }).then(() => form.reset()).catch(err => console.error(err));
-                        }
-                    }
-
-                    // Handle Item Deletion
-                    if (e.target.matches('.delete-item-btn')) {
-                        const itemNameToDelete = e.target.dataset.item;
-                        if (confirm(`Are you sure you want to delete the item "${itemNameToDelete}"?`)) {
-                            rfqOptionsCollection.doc(categoryId).update({
-                                items: firebase.firestore.FieldValue.arrayRemove(itemNameToDelete)
-                            }).catch(err => console.error(err));
+                        if (confirm(`Delete category "${categoryId}" and all its items?`)) rfqOptionsCollection.doc(categoryId).delete();
+                    } else if (e.target.matches('.edit-item-btn')) {
+                        const name = e.target.dataset.name;
+                        const quantity = e.target.dataset.quantity;
+                        itemNameInput.value = name;
+                        itemQuantityInput.value = quantity;
+                        submitBtn.textContent = 'Update Item';
+                        cancelEditBtn.classList.remove('hidden');
+                        currentEditingItem = { categoryId, originalItem: { name, quantity: Number(quantity) } };
+                    } else if (e.target.matches('.delete-item-btn')) {
+                        const itemToDelete = { name: e.target.dataset.name, quantity: Number(e.target.dataset.quantity) };
+                        if (confirm(`Delete item "${itemToDelete.name}"?`)) rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayRemove(itemToDelete) });
+                    } else if (e.target.matches('.cancel-edit-item-btn')) {
+                        resetItemForm();
+                    } else if (e.target.closest('.add-item-form')) {
+                        const newItemName = itemNameInput.value.trim();
+                        const newItemQuantity = Number(itemQuantityInput.value);
+                        if (newItemName && !isNaN(newItemQuantity)) {
+                            if (submitBtn.textContent === 'Update Item' && currentEditingItem.categoryId === categoryId) {
+                                // Update logic: remove old, add new
+                                rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayRemove(currentEditingItem.originalItem) })
+                                    .then(() => rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayUnion({ name: newItemName, quantity: newItemQuantity }) }))
+                                    .then(resetItemForm);
+                            } else {
+                                // Add logic
+                                rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayUnion({ name: newItemName, quantity: newItemQuantity }) }).then(resetItemForm);
+                            }
                         }
                     }
                 });

@@ -1095,10 +1095,13 @@
             subProductDropdown.innerHTML = '<option value="">-- Select Sub-item --</option>';
 
             if (productType && rfqOptionsData[productType]) {
-                rfqOptionsData[productType].forEach(item => {
+                // Sort items alphabetically by name before displaying
+                const sortedItems = [...rfqOptionsData[productType]].sort((a, b) => a.name.localeCompare(b.name));
+
+                sortedItems.forEach(item => {
                     const option = document.createElement('option');
-                    option.value = item;
-                    option.textContent = item;
+                    option.value = item.name; // FIX: Use item.name
+                    option.textContent = `${item.name} (Qty: ${item.quantity})`; // FIX: Use item.name and show quantity
                     subProductDropdown.appendChild(option);
                 });
                 subSelectionContainer.classList.remove('hidden');
