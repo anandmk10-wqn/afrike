@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afritrike - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root {
+            --color-deep-green: #0A4734;
+            --color-sea-green: #20B2AA;
+            --color-dark-orange: #FF8C00;
+            --color-dark-gray: #333333;
+            --color-light-gray: #F0F0F0;
+            --color-white: #FFFFFF;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-light-gray);
+        }
+        .btn {
+            @apply font-bold py-2 px-4 rounded transition duration-300 ease-in-out;
+        }
+        .btn-primary {
+            @apply bg-dark-orange text-white;
+        }
+        .btn-primary:hover {
+            @apply bg-sea-green;
+        }
+        .input-field {
+            @apply shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline;
+        }
+    </style>
+</head>
+<body class="bg-light-gray">
+
+    <header class="bg-white shadow-md">
+        <div class="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div class="flex items-center">
+                <img src="./images/logo1.png" alt="Afritrike Logo" class="h-10 mr-4" onerror="this.onerror=null;this.src='https://placehold.co/120x40/CCCCCC/000000?text=Logo+Err';">
+                <h1 class="text-2xl font-bold text-deep-green">Admin Panel</h1>
+            </div>
+            <div id="user-info" class="hidden items-center">
+                <p id="user-name" class="text-dark-gray mr-4"></p>
+                <button id="logout-button" class="btn btn-primary">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+
+        <!-- Login Section -->
+        <div id="login-section" class="text-center py-16">
+            <h2 class="text-3xl font-bold text-dark-gray mb-4">Admin Authentication</h2>
+            <p class="text-medium-gray mb-8">Please log in with your authorized Google account to manage shipments.</p>
+            <button id="login-button" class="bg-sea-green text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-deep-green transition duration-300 ease-in-out inline-flex items-center">
+                <svg class="w-6 h-6 mr-3" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21.35 11.1H12.18V13.83H18.67C18.36 17.64 15.2 20.24 12.18 20.24C8.47 20.24 5.4 17.17 5.4 13.46C5.4 9.75 8.47 6.68 12.18 6.68C13.83 6.68 15.29 7.27 16.43 8.32L18.78 6C16.96 4.23 14.7 3.32 12.18 3.32C7.07 3.32 3 7.4 3 12.5C3 17.6 7.07 21.68 12.18 21.68C17.03 21.68 21.64 18.33 21.64 12.76C21.64 12.21 21.54 11.66 21.35 11.1Z"/></svg>
+                Login with Google
+            </button>
+        </div>
+
+        <!-- Admin Content Section -->
+        <div id="admin-content" class="hidden">
+            <h2 class="text-3xl font-bold text-dark-gray mb-6">Shipment Management</h2>
+
+            <!-- Add/Edit Shipment Form -->
+            <div class="bg-white p-8 rounded-lg shadow-md mb-8">
+                <h3 id="form-title" class="text-2xl font-bold text-deep-green mb-4">Add New Shipment</h3>
+                <form id="shipment-form" class="space-y-4">
+                    <input type="hidden" id="shipment-id">
+                    <div>
+                        <label for="po-number" class="block text-dark-gray text-sm font-bold mb-1">VIN No.:</label>
+                        <input type="text" id="po-number" class="input-field" placeholder="e.g., VIN12345" required>
+                    </div>
+                    <div>
+                        <label for="tracking-number" class="block text-dark-gray text-sm font-bold mb-1">Lot No.:</label>
+                        <input type="text" id="tracking-number" class="input-field" placeholder="e.g., LOT98765" required>
+                    </div>
+                    <div>
+                        <label for="status" class="block text-dark-gray text-sm font-bold mb-1">Status:</label>
+                        <select id="status" class="input-field" required>
+                            <option value="Pending">Pending</option>
+                            <option value="In Transit">In Transit</option>
+                            <option value="Out for Delivery">Out for Delivery</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Exception">Exception</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button type="submit" id="submit-button" class="btn btn-primary">Add Shipment</button>
+                        <button type="button" id="cancel-button" class="btn bg-gray-300 hover:bg-gray-400 text-dark-gray hidden">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Shipment List -->
+            <div class="bg-white p-8 rounded-lg shadow-md">
+                <h3 class="text-2xl font-bold text-deep-green mb-4">Current Shipments</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead class="bg-light-gray">
+                            <tr>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-left">Created At</th>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-left">VIN No.</th>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-left">Lot No.</th>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-left">Status</th>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shipment-table-body" class="text-dark-gray">
+                            <!-- Rows will be added here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Shipment Updates Management Modal/Panel -->
+            <div id="shipment-updates-panel" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+                <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold text-deep-green">Manage Shipment Updates for <span id="updates-panel-vin"></span></h3>
+                        <button id="close-updates-panel" class="text-2xl font-bold text-dark-gray">&times;</button>
+                    </div>
+                    <!-- Add Update Form -->
+                    <form id="add-update-form" class="mb-6 space-y-2">
+                        <input type="hidden" id="update-shipment-id">
+                        <label for="new-update-text" class="block text-dark-gray text-sm font-bold">New Update Text:</label>
+                        <textarea id="new-update-text" class="input-field w-full" rows="2" required></textarea>
+                        <button type="submit" class="btn btn-primary w-full">Add Update</button>
+                    </form>
+                    <!-- Updates List -->
+                    <h4 class="text-xl font-semibold text-dark-gray mb-2">Current Updates</h4>
+                    <ul id="updates-list" class="space-y-2">
+                        <!-- Updates will be rendered here -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- RFQ Dropdown Management -->
+            <div class="mt-8 bg-white p-8 rounded-lg shadow-md">
+                <h3 class="text-2xl font-bold text-deep-green mb-4">Manage RFQ Dropdown Options</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Add New Category -->
+                    <div>
+                        <h4 class="text-xl font-semibold text-dark-gray mb-2">Add New Category</h4>
+                        <form id="add-category-form" class="flex items-center space-x-2">
+                            <input type="text" id="new-category-name" class="input-field flex-grow" placeholder="e.g., Tricycles" required>
+                            <button type="submit" class="btn btn-primary">Add</button>
+                        </form>
+                    </div>
+                </div>
+                <!-- Existing Categories -->
+                <div id="categories-container" class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Categories will be rendered here by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="firebase-config.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Element Selection ---
+            const loginSection = document.getElementById('login-section');
+            const adminContent = document.getElementById('admin-content');
+            const loginButton = document.getElementById('login-button');
+            const logoutButton = document.getElementById('logout-button');
+            const userInfo = document.getElementById('user-info');
+            const userName = document.getElementById('user-name');
+
+            // --- Firebase Auth Setup ---
+            try {
+                if (!firebase) {
+                    alert('Error: Firebase scripts failed to load.');
+                    return;
+                }
+
+                const auth = firebase.auth();
+                const db = firebase.firestore();
+                const authProvider = new firebase.auth.GoogleAuthProvider();
+
+                loginButton.addEventListener('click', () => auth.signInWithPopup(authProvider).catch(err => alert(`Login failed: ${err.message}`)));
+                logoutButton.addEventListener('click', () => auth.signOut());
+
+                auth.onAuthStateChanged(user => {
+                    if (user) {
+                        const userDomain = user.email.split('@')[1];
+                        const authorizedDomains = ['grrgl.com', 'mil-serve.com'];
+                        if (authorizedDomains.includes(userDomain)) {
+                            loginSection.classList.add('hidden');
+                            adminContent.classList.remove('hidden');
+                            userInfo.classList.add('flex');
+                            userName.textContent = user.displayName || user.email;
+                            initApp(db);
+                        } else {
+                            alert('Access denied. You must use an authorized domain account.');
+                            auth.signOut();
+                        }
+                    } else {
+                        adminContent.classList.add('hidden');
+                        loginSection.classList.remove('hidden');
+                        userInfo.classList.remove('flex');
+                        userName.textContent = '';
+                    }
+                });
+            } catch(e) {
+                console.error('FATAL ERROR during Firebase setup:', e);
+                alert('A critical error occurred. Check the developer console.');
+            }
+
+            const initApp = (db) => {
+                // --- Shipment Management ---
+                const shipmentsCollection = db.collection('shipments');
+                const shipmentTableBody = document.getElementById('shipment-table-body');
+                const shipmentForm = document.getElementById('shipment-form');
+                const shipmentFormTitle = document.getElementById('form-title');
+                const shipmentSubmitButton = document.getElementById('submit-button');
+                const shipmentCancelButton = document.getElementById('cancel-button');
+                const shipmentIdField = document.getElementById('shipment-id');
+
+                // --- Shipment Updates Management ---
+                const updatesPanel = document.getElementById('shipment-updates-panel');
+                const closeUpdatesPanelBtn = document.getElementById('close-updates-panel');
+                const updatesPanelVin = document.getElementById('updates-panel-vin');
+                const updatesList = document.getElementById('updates-list');
+                const addUpdateForm = document.getElementById('add-update-form');
+                const updateShipmentIdField = document.getElementById('update-shipment-id');
+                const newUpdateTextField = document.getElementById('new-update-text');
+
+                const resetShipmentForm = () => {
+                    shipmentForm.reset();
+                    shipmentFormTitle.textContent = 'Add New Shipment';
+                    shipmentSubmitButton.textContent = 'Add Shipment';
+                    shipmentCancelButton.classList.add('hidden');
+                    shipmentIdField.value = '';
+                };
+
+                shipmentsCollection.orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+                    shipmentTableBody.innerHTML = '';
+                    snapshot.docs.forEach(doc => {
+                        const data = doc.data();
+                        const tr = document.createElement('tr');
+                        tr.setAttribute('data-id', doc.id);
+                        tr.classList.add('border-b', 'hover:bg-gray-50');
+                        const statusColors = {'Pending': 'bg-gray-200 text-gray-800','In Transit': 'bg-yellow-200 text-yellow-800','Out for Delivery': 'bg-blue-200 text-blue-800','Delivered': 'bg-green-200 text-green-800','Exception': 'bg-red-200 text-red-800'};
+                        const statusColor = statusColors[data.status] || 'bg-gray-200 text-gray-800';
+                        const timestamp = data.createdAt ? data.createdAt.toDate().toLocaleString() : 'N/A';
+                        tr.innerHTML = `<td class="py-3 px-4 text-sm">${timestamp}</td><td class="py-3 px-4">${data.poNumber}</td><td class="py-3 px-4">${data.trackingNumber}</td><td class="py-3 px-4"><span class="${statusColor} py-1 px-3 rounded-full text-xs">${data.status}</span></td><td class="py-3 px-4 text-center"><button class="manage-updates-btn text-blue-500 hover:text-blue-700 font-semibold mr-2">Updates</button><button class="edit-btn text-sea-green hover:text-deep-green font-semibold mr-2">Edit</button><button class="delete-btn text-red-500 hover:text-red-700 font-semibold">Delete</button></td>`;
+                        shipmentTableBody.appendChild(tr);
+                    });
+                }, err => alert("Could not fetch shipment data. Check Firestore indexes."));
+
+                shipmentForm.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const poNumber = shipmentForm['po-number'].value;
+                    const trackingNumber = shipmentForm['tracking-number'].value;
+                    const status = shipmentForm.status.value;
+                    const id = shipmentIdField.value;
+                    const promise = id
+                        ? shipmentsCollection.doc(id).update({ poNumber, trackingNumber, status })
+                        : shipmentsCollection.add({ poNumber, trackingNumber, status, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updates: [] });
+                    promise.then(resetShipmentForm).catch(err => console.error(err));
+                });
+
+                const openUpdatesPanel = (shipmentId, vin) => {
+                    updateShipmentIdField.value = shipmentId;
+                    updatesPanelVin.textContent = vin;
+                    updatesList.innerHTML = '<li>Loading updates...</li>';
+                    updatesPanel.classList.remove('hidden');
+
+                    shipmentsCollection.doc(shipmentId).onSnapshot(doc => {
+                        updatesList.innerHTML = '';
+                        const updates = doc.data().updates || [];
+                        if (updates.length === 0) {
+                            updatesList.innerHTML = '<li>No updates for this shipment yet.</li>';
+                            return;
+                        }
+                        // Sort updates by timestamp ascending
+                        updates.sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
+                        updates.forEach((update, index) => {
+                            const li = document.createElement('li');
+                            li.className = 'flex justify-between items-center p-2 bg-gray-100 rounded';
+                            li.innerHTML = `<span>${update.timestamp.toDate().toLocaleString()}: ${update.text}</span>`;
+                            updatesList.appendChild(li);
+                        });
+                    });
+                };
+
+                shipmentTableBody.addEventListener('click', e => {
+                    const row = e.target.closest('tr');
+                    if (!row) return;
+                    const id = row.dataset.id;
+                    if (e.target.matches('.manage-updates-btn')) {
+                        const vin = row.cells[1].textContent;
+                        openUpdatesPanel(id, vin);
+                    }
+                    if (e.target.matches('.edit-btn')) {
+                        shipmentsCollection.doc(id).get().then(doc => {
+                            const data = doc.data();
+                            shipmentIdField.value = doc.id;
+                            shipmentForm['po-number'].value = data.poNumber;
+                            shipmentForm['tracking-number'].value = data.trackingNumber;
+                            shipmentForm.status.value = data.status;
+                            shipmentFormTitle.textContent = 'Edit Shipment';
+                            shipmentSubmitButton.textContent = 'Update Shipment';
+                            shipmentCancelButton.classList.remove('hidden');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        });
+                    }
+                    if (e.target.matches('.delete-btn')) {
+                        if (confirm('Are you sure you want to delete this shipment?')) {
+                            shipmentsCollection.doc(id).delete().catch(err => console.error(err));
+                        }
+                    }
+                });
+
+                shipmentCancelButton.addEventListener('click', resetShipmentForm);
+                closeUpdatesPanelBtn.addEventListener('click', () => updatesPanel.classList.add('hidden'));
+
+                addUpdateForm.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const shipmentId = updateShipmentIdField.value;
+                    const updateText = newUpdateTextField.value.trim();
+                    if (!shipmentId || !updateText) return;
+
+                    const newUpdate = {
+                        text: updateText,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    shipmentsCollection.doc(shipmentId).update({
+                        updates: firebase.firestore.FieldValue.arrayUnion(newUpdate)
+                    }).then(() => {
+                        addUpdateForm.reset();
+                    }).catch(err => console.error("Error adding update:", err));
+                });
+
+                // --- RFQ Management ---
+                const rfqOptionsCollection = db.collection('rfqOptions');
+                const categoriesContainer = document.getElementById('categories-container');
+                const addCategoryForm = document.getElementById('add-category-form');
+                let currentEditingItem = { categoryId: null, originalItem: null };
+
+                const renderRfqUI = () => {
+                    rfqOptionsCollection.onSnapshot(snapshot => {
+                        categoriesContainer.innerHTML = '';
+                        snapshot.docs.forEach(doc => {
+                            const categoryId = doc.id;
+                            const category = doc.data();
+                            const card = document.createElement('div');
+                            card.className = 'category-card bg-light-gray p-4 rounded-lg shadow';
+                            card.setAttribute('data-id', categoryId);
+                            let itemsHtml = '<ul class="space-y-2 text-sm">';
+                            if (category.items && category.items.length > 0) {
+                                category.items.forEach(item => {
+                                    itemsHtml += `<li class="flex justify-between items-center p-2 bg-white rounded"><span>${item.name} (Qty: ${item.quantity})</span><div><button class="edit-item-btn text-sea-green hover:text-deep-green text-xs font-semibold mr-2" data-name="${item.name}" data-quantity="${item.quantity}">EDIT</button><button class="delete-item-btn text-red-500 hover:text-red-700 text-xs font-semibold" data-name="${item.name}" data-quantity="${item.quantity}">REMOVE</button></div></li>`;
+                                });
+                            } else {
+                                itemsHtml += '<li class="text-gray-500">No items yet.</li>';
+                            }
+                            itemsHtml += '</ul>';
+                            card.innerHTML = `<div class="flex justify-between items-center mb-3"><h5 class="text-lg font-bold text-deep-green">${categoryId}</h5><button class="delete-category-btn text-red-500 hover:text-red-700 font-semibold">Delete Category</button></div><div class="mb-4"><h6 class="font-semibold mb-2 text-dark-gray">Items:</h6>${itemsHtml}</div><form class="add-item-form"><div class="flex items-center space-x-2"><input type="text" class="item-name-input input-field flex-grow text-sm" placeholder="New item name" required><input type="number" class="item-quantity-input input-field w-20 text-sm" placeholder="Qty" required></div><button type="submit" class="btn btn-primary text-sm mt-2 w-full">Add Item</button><button type="button" class="cancel-edit-item-btn btn bg-gray-300 hover:bg-gray-400 text-sm mt-2 w-full hidden">Cancel Edit</button></form>`;
+                            categoriesContainer.appendChild(card);
+                        });
+                    });
+                };
+
+                renderRfqUI();
+
+                addCategoryForm.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const newCategoryName = addCategoryForm['new-category-name'].value.trim();
+                    if (newCategoryName) {
+                        rfqOptionsCollection.doc(newCategoryName).set({ items: [] }).then(() => addCategoryForm.reset()).catch(err => console.error("Error adding category:", err));
+                    }
+                });
+
+                // Handle button clicks for delete/edit
+                categoriesContainer.addEventListener('click', e => {
+                    const card = e.target.closest('.category-card');
+                    if (!card) return;
+                    const categoryId = card.dataset.id;
+
+                    // Handle Category Deletion
+                    if (e.target.matches('.delete-category-btn')) {
+                        if (confirm(`Delete category "${categoryId}" and all its items?`)) rfqOptionsCollection.doc(categoryId).delete();
+                    }
+
+                    // Handle Item Edit button click (to populate the form)
+                    else if (e.target.matches('.edit-item-btn')) {
+                        const form = card.querySelector('.add-item-form');
+                        const itemNameInput = form.querySelector('.item-name-input');
+                        const itemQuantityInput = form.querySelector('.item-quantity-input');
+                        const submitBtn = form.querySelector('button[type="submit"]');
+                        const cancelEditBtn = form.querySelector('.cancel-edit-item-btn');
+
+                        const name = e.target.dataset.name;
+                        const quantity = e.target.dataset.quantity;
+                        itemNameInput.value = name;
+                        itemQuantityInput.value = quantity;
+                        submitBtn.textContent = 'Update Item';
+                        cancelEditBtn.classList.remove('hidden');
+                        currentEditingItem = { categoryId, originalItem: { name, quantity: Number(quantity) } };
+                    }
+
+                    // Handle Item Deletion
+                    else if (e.target.matches('.delete-item-btn')) {
+                        const itemToDelete = { name: e.target.dataset.name, quantity: Number(e.target.dataset.quantity) };
+                        if (confirm(`Delete item "${itemToDelete.name}"?`)) rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayRemove(itemToDelete) });
+                    }
+
+                    // Handle Cancel Edit button click
+                    else if (e.target.matches('.cancel-edit-item-btn')) {
+                        const form = card.querySelector('.add-item-form');
+                        const submitBtn = form.querySelector('button[type="submit"]');
+                        e.target.classList.add('hidden');
+                        form.reset();
+                        submitBtn.textContent = 'Add Item';
+                        currentEditingItem = { categoryId: null, originalItem: null };
+                    }
+                });
+
+                // Handle form SUBMIT for adding/updating items
+                categoriesContainer.addEventListener('submit', e => {
+                    e.preventDefault();
+                    if (!e.target.matches('.add-item-form')) return;
+
+                    const card = e.target.closest('.category-card');
+                    const categoryId = card.dataset.id;
+                    const form = e.target;
+                    const itemNameInput = form.querySelector('.item-name-input');
+                    const itemQuantityInput = form.querySelector('.item-quantity-input');
+                    const submitBtn = form.querySelector('button[type="submit"]');
+                    const cancelEditBtn = form.querySelector('.cancel-edit-item-btn');
+
+                    const resetItemForm = () => {
+                        form.reset();
+                        submitBtn.textContent = 'Add Item';
+                        cancelEditBtn.classList.add('hidden');
+                        currentEditingItem = { categoryId: null, originalItem: null };
+                    };
+
+                    const newItemName = itemNameInput.value.trim();
+                    const newItemQuantity = Number(itemQuantityInput.value);
+
+                    if (newItemName && !isNaN(newItemQuantity)) {
+                        if (submitBtn.textContent === 'Update Item' && currentEditingItem.categoryId === categoryId) {
+                            // Update logic: remove old, add new
+                            rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayRemove(currentEditingItem.originalItem) })
+                                .then(() => rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayUnion({ name: newItemName, quantity: newItemQuantity }) }))
+                                .then(resetItemForm);
+                        } else {
+                            // Add logic
+                            rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayUnion({ name: newItemName, quantity: newItemQuantity }) }).then(resetItemForm);
+                        }
+                    }
+                });
+            };
+        });
+    </script>
+</body>
+</html>

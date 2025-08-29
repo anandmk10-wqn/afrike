@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Shipments collection
+    match /shipments/{shipmentId} {
+      // Allow public read access for shipment tracking.
+      allow read: if true;
+
+      // Allow write access (create, update, delete) only to authenticated admins
+      // from your specified Google Workspace domains.
+      allow write: if request.auth != null &&
+                      (request.auth.token.email.matches('.*@grrgl\\.com$') ||
+                       request.auth.token.email.matches('.*@mil-serve\\.com$'));
+    }
+
+    // RFQ Options collection
+    match /rfqOptions/{categoryId} {
+      // Allow public read for the RFQ modal on the main page.
+      allow read: if true;
+
+      // Allow write access only to authenticated admins to manage the dropdowns.
+      allow write: if request.auth != null &&
+                      (request.auth.token.email.matches('.*@grrgl\\.com$') ||
+                       request.auth.token.email.matches('.*@mil-serve\\.com$'));
+    }
+  }
+}
