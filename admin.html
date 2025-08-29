@@ -300,12 +300,59 @@
                     }
                 });
 
+                // Handle button clicks for delete/edit
                 categoriesContainer.addEventListener('click', e => {
-                    e.preventDefault();
                     const card = e.target.closest('.category-card');
                     if (!card) return;
                     const categoryId = card.dataset.id;
-                    const form = card.querySelector('.add-item-form');
+
+                    // Handle Category Deletion
+                    if (e.target.matches('.delete-category-btn')) {
+                        if (confirm(`Delete category "${categoryId}" and all its items?`)) rfqOptionsCollection.doc(categoryId).delete();
+                    }
+
+                    // Handle Item Edit button click (to populate the form)
+                    else if (e.target.matches('.edit-item-btn')) {
+                        const form = card.querySelector('.add-item-form');
+                        const itemNameInput = form.querySelector('.item-name-input');
+                        const itemQuantityInput = form.querySelector('.item-quantity-input');
+                        const submitBtn = form.querySelector('button[type="submit"]');
+                        const cancelEditBtn = form.querySelector('.cancel-edit-item-btn');
+
+                        const name = e.target.dataset.name;
+                        const quantity = e.target.dataset.quantity;
+                        itemNameInput.value = name;
+                        itemQuantityInput.value = quantity;
+                        submitBtn.textContent = 'Update Item';
+                        cancelEditBtn.classList.remove('hidden');
+                        currentEditingItem = { categoryId, originalItem: { name, quantity: Number(quantity) } };
+                    }
+
+                    // Handle Item Deletion
+                    else if (e.target.matches('.delete-item-btn')) {
+                        const itemToDelete = { name: e.target.dataset.name, quantity: Number(e.target.dataset.quantity) };
+                        if (confirm(`Delete item "${itemToDelete.name}"?`)) rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayRemove(itemToDelete) });
+                    }
+
+                    // Handle Cancel Edit button click
+                    else if (e.target.matches('.cancel-edit-item-btn')) {
+                        const form = card.querySelector('.add-item-form');
+                        const submitBtn = form.querySelector('button[type="submit"]');
+                        e.target.classList.add('hidden');
+                        form.reset();
+                        submitBtn.textContent = 'Add Item';
+                        currentEditingItem = { categoryId: null, originalItem: null };
+                    }
+                });
+
+                // Handle form SUBMIT for adding/updating items
+                categoriesContainer.addEventListener('submit', e => {
+                    e.preventDefault();
+                    if (!e.target.matches('.add-item-form')) return;
+
+                    const card = e.target.closest('.category-card');
+                    const categoryId = card.dataset.id;
+                    const form = e.target;
                     const itemNameInput = form.querySelector('.item-name-input');
                     const itemQuantityInput = form.querySelector('.item-quantity-input');
                     const submitBtn = form.querySelector('button[type="submit"]');
@@ -318,34 +365,18 @@
                         currentEditingItem = { categoryId: null, originalItem: null };
                     };
 
-                    if (e.target.matches('.delete-category-btn')) {
-                        if (confirm(`Delete category "${categoryId}" and all its items?`)) rfqOptionsCollection.doc(categoryId).delete();
-                    } else if (e.target.matches('.edit-item-btn')) {
-                        const name = e.target.dataset.name;
-                        const quantity = e.target.dataset.quantity;
-                        itemNameInput.value = name;
-                        itemQuantityInput.value = quantity;
-                        submitBtn.textContent = 'Update Item';
-                        cancelEditBtn.classList.remove('hidden');
-                        currentEditingItem = { categoryId, originalItem: { name, quantity: Number(quantity) } };
-                    } else if (e.target.matches('.delete-item-btn')) {
-                        const itemToDelete = { name: e.target.dataset.name, quantity: Number(e.target.dataset.quantity) };
-                        if (confirm(`Delete item "${itemToDelete.name}"?`)) rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayRemove(itemToDelete) });
-                    } else if (e.target.matches('.cancel-edit-item-btn')) {
-                        resetItemForm();
-                    } else if (e.target.closest('.add-item-form')) {
-                        const newItemName = itemNameInput.value.trim();
-                        const newItemQuantity = Number(itemQuantityInput.value);
-                        if (newItemName && !isNaN(newItemQuantity)) {
-                            if (submitBtn.textContent === 'Update Item' && currentEditingItem.categoryId === categoryId) {
-                                // Update logic: remove old, add new
-                                rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayRemove(currentEditingItem.originalItem) })
-                                    .then(() => rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayUnion({ name: newItemName, quantity: newItemQuantity }) }))
-                                    .then(resetItemForm);
-                            } else {
-                                // Add logic
-                                rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayUnion({ name: newItemName, quantity: newItemQuantity }) }).then(resetItemForm);
-                            }
+                    const newItemName = itemNameInput.value.trim();
+                    const newItemQuantity = Number(itemQuantityInput.value);
+
+                    if (newItemName && !isNaN(newItemQuantity)) {
+                        if (submitBtn.textContent === 'Update Item' && currentEditingItem.categoryId === categoryId) {
+                            // Update logic: remove old, add new
+                            rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayRemove(currentEditingItem.originalItem) })
+                                .then(() => rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayUnion({ name: newItemName, quantity: newItemQuantity }) }))
+                                .then(resetItemForm);
+                        } else {
+                            // Add logic
+                            rfqOptionsCollection.doc(categoryId).update({ items: firebase.firestore.FieldValue.arrayUnion({ name: newItemName, quantity: newItemQuantity }) }).then(resetItemForm);
                         }
                     }
                 });
