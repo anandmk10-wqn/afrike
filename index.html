@@ -121,6 +121,42 @@
             object-fit: cover;
         }
 
+        /* New Scrolling Gallery Styles */
+        .scrolling-strip-container {
+            width: 100%;
+            overflow: hidden;
+        }
+        .scrolling-strip {
+            display: flex;
+            width: max-content;
+            animation: scroll-left 60s linear infinite;
+        }
+        .scrolling-strip.reverse {
+            animation-name: scroll-right;
+        }
+        .scrolling-strip:hover {
+            animation-play-state: paused;
+        }
+        .scrolling-strip-img {
+            height: 200px;
+            margin: 0 10px;
+            border-radius: 20px; /* "Oval" corners */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+        .scrolling-strip-img:hover {
+            transform: scale(1.05) perspective(800px) rotateY(10deg); /* "3D" effect */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        @keyframes scroll-left {
+            from { transform: translateX(0%); }
+            to { transform: translateX(-50%); }
+        }
+        @keyframes scroll-right {
+            from { transform: translateX(-50%); }
+            to { transform: translateX(0%); }
+        }
+
         /* New: Single Video Section Styling */
         .video-container {
             position: relative;
@@ -493,7 +529,7 @@
                 <div class="dropdown-content">
                     <a href="#" onclick="openContactModal(); highlightActiveMenu(document.getElementById('menu-more-parent'));">Contact Us</a>
                     <a href="#" onclick="openRfqModal(); highlightActiveMenu(document.getElementById('menu-more-parent'));">Send RFQ</a>
-                    <a href="#" onclick="openShipmentModal(); highlightActiveMenu(document.getElementById('menu-more-parent'));">Check Shipment Status</a>
+                    <a href="#" onclick="openShipmentModal(); highlightActiveMenu(document.getElementById('menu-more-parent'));">Shipment Status</a>
                 </div>
             </li>
         </ul>
@@ -561,7 +597,7 @@
 
             <div class="mobile-menu-block bg-deep-green" data-menu-id="mobile-shipment">
                 <div class="mobile-menu-block-content">
-                    <a href="#" class="mobile-menu-block-link" onclick="openShipmentModal(); highlightActiveMobileMenu(this); closeMobileMenu();">Check Shipment Status</a>
+                    <a href="#" class="mobile-menu-block-link" onclick="openShipmentModal(); highlightActiveMobileMenu(this); closeMobileMenu();">Shipment Status</a>
                 </div>
             </div>
         </div>
@@ -689,10 +725,19 @@
                     </div>
                 </div>
             </section>
-        </section> <section id="gallery-section" class="w-full my-12 py-12 bg-white">
+        </section>
+        <section id="gallery-section" class="w-full my-12 py-12 bg-white overflow-hidden">
             <h2 class="text-4xl font-bebas-neue text-deep-green mb-8 text-center text-shadow-effect">Our Gallery</h2>
-            <div id="gallery-thumbnails-grid" class="gallery-thumbnail-grid max-w-7xl mx-auto">
+            <div class="scrolling-strip-container">
+                <div id="gallery-strip-1" class="scrolling-strip">
+                    <!-- Images will be populated here by JavaScript -->
                 </div>
+            </div>
+            <div class="scrolling-strip-container mt-4">
+                <div id="gallery-strip-2" class="scrolling-strip reverse">
+                    <!-- Images will be populated here by JavaScript -->
+                </div>
+            </div>
         </section>
     </div>
 
@@ -707,13 +752,15 @@
                 <p class="text-light-gray">Email: sales@afritrike.com</p>
                 <p class="text-light-gray">Whatsapp: +91 9875368688</p>
                 <p class="text-light-gray">Phone: +971 559695478</p>
+                <p class="text-light-gray mt-4 font-semibold">Afritrike HQ</p>
+                <p class="text-light-gray">Meydan Road, Nad Al Sheba</p>
+                <p class="text-light-gray">Dubai UAE</p>
             </div>
 
             <div>
-                <h3 class="text-xl font-bold text-sea-green mb-4">Address</h3>
-                <p class="text-light-gray">Afritrike HQ,</p>
-                <p class="text-light-gray">Meydan Road, Nad Al Sheba</p>
-                <p class="text-light-gray">Dubai UAE</p>
+                <h3 class="text-xl font-bold text-sea-green mb-4">Shipment Tracking</h3>
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://aft01-c0229.web.app/index.html?open=shipment" alt="QR Code for Shipment Tracking" class="bg-white p-1 rounded-lg">
+                <p class="text-sm text-gray-400 mt-2">Scan to track your shipment.</p>
             </div>
 
             <div>
@@ -834,7 +881,7 @@
             <h2 class="text-2xl font-bold text-dark-gray mb-4">Check Shipment Status</h2>
             <form id="shipmentForm" class="space-y-4">
                 <div>
-                    <label for="shipmentNumber" class="block text-dark-gray text-sm font-bold mb-1">Enter PO Number or Tracking Number:</label>
+                    <label for="shipmentNumber" class="block text-dark-gray text-sm font-bold mb-1">Enter VIN Number / Lot Number:</label>
                     <input type="text" id="shipmentNumber" name="shipmentNumber" class="shadow appearance-none border rounded w-full py-2 px-3 text-dark-gray leading-tight focus:outline-none focus:shadow-outline" required>
                 </div>
                 <div id="shipmentFormStatus" class="text-sm font-semibold"></div>
@@ -963,22 +1010,38 @@
 
         // Function to render gallery thumbnails
         function renderGalleryThumbnails() {
-            const gridContainer = document.getElementById('gallery-thumbnails-grid');
-            if (!gridContainer) return;
+            const strip1 = document.getElementById('gallery-strip-1');
+            const strip2 = document.getElementById('gallery-strip-2');
+            if (!strip1 || !strip2) return;
 
-            gridContainer.innerHTML = '';
+            // To make the scrolling infinite, we need to duplicate the images
+            const duplicatedImages = [...galleryImages, ...galleryImages];
 
-            galleryImages.forEach((src, index) => {
-                const thumbnailItem = document.createElement('div');
-                thumbnailItem.classList.add('gallery-thumbnail-item');
-                thumbnailItem.onclick = () => openGallerySlideshowModal(index);
+            const half = Math.ceil(duplicatedImages.length / 2);
+            const firstHalf = duplicatedImages.slice(0, half);
+            const secondHalf = duplicatedImages.slice(half);
 
+            strip1.innerHTML = '';
+            strip2.innerHTML = '';
+
+            firstHalf.forEach((src, index) => {
                 const img = document.createElement('img');
                 img.src = src;
-                img.alt = `Gallery Thumbnail ${index + 1}`;
+                img.className = 'scrolling-strip-img';
+                img.alt = `Gallery image ${index + 1}`;
+                // The index for the modal needs to be the original index, not from the duplicated array
+                img.onclick = () => openGallerySlideshowModal(index % galleryImages.length);
+                strip1.appendChild(img);
+            });
 
-                thumbnailItem.appendChild(img);
-                gridContainer.appendChild(thumbnailItem);
+            secondHalf.forEach((src, index) => {
+                const img = document.createElement('img');
+                img.src = src;
+                img.className = 'scrolling-strip-img';
+                img.alt = `Gallery image ${half + index + 1}`;
+                // The index for the modal needs to be the original index
+                img.onclick = () => openGallerySlideshowModal((half + index) % galleryImages.length);
+                strip2.appendChild(img);
             });
         }
 
@@ -1173,6 +1236,12 @@ function closeGallerySlideshowModal() {
 }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Check for URL params to open a modal
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('open') === 'shipment') {
+                openShipmentModal();
+            }
+
             // Initial active menu item setup
             document.getElementById('menu-home').classList.add('active-menu-item');
             document.querySelector('.mobile-menu-block[data-menu-id="mobile-home"]').classList.add('active-menu-item-mobile');
@@ -1282,9 +1351,10 @@ function closeGallerySlideshowModal() {
 
                 formStatus.textContent = '';
                 resultDiv.classList.add('hidden');
+                resultContent.innerHTML = ''; // Clear previous results
 
                 if (!shipmentNumber) {
-                    formStatus.textContent = 'Please enter a PO or Tracking Number.';
+                    formStatus.textContent = 'Please enter a VIN Number / Lot Number.';
                     formStatus.classList.add('text-red-500');
                     return;
                 }
@@ -1317,14 +1387,43 @@ function closeGallerySlideshowModal() {
                         };
                         const statusColor = statusColors[data.status] || 'bg-gray-200 text-gray-800';
 
-                        resultContent.innerHTML = `
-                            <p><strong>PO Number:</strong> ${data.poNumber}</p>
-                            <p><strong>Tracking Number:</strong> ${data.trackingNumber}</p>
-                            <p><strong>Status:</strong> <span class="py-1 px-3 rounded-full text-xs ${statusColor}">${data.status}</span></p>
+                        // Main shipment details
+                        const detailsHtml = `
+                            <p><strong>VIN No.:</strong> ${data.poNumber}</p>
+                            <p><strong>Lot No.:</strong> ${data.trackingNumber}</p>
+                            <p><strong>Status:</strong> <span id="status-clickable" class="py-1 px-3 rounded-full text-xs ${statusColor} cursor-pointer hover:opacity-80">${data.status} &darr;</span></p>
                         `;
+
+                        // Updates section (initially hidden)
+                        const updatesHtml = `<div id="shipment-updates-list" class="hidden mt-4 pt-4 border-t border-gray-300"></div>`;
+
+                        resultContent.innerHTML = detailsHtml + updatesHtml;
                         resultDiv.classList.remove('hidden');
                         formStatus.textContent = 'Shipment found.';
                         formStatus.classList.add('text-sea-green');
+
+                        // Add click listener for the status
+                        document.getElementById('status-clickable').addEventListener('click', () => {
+                            const updatesListDiv = document.getElementById('shipment-updates-list');
+                            const updates = data.updates || [];
+
+                            if (updates.length > 0) {
+                                // Sort updates by timestamp ascending
+                                updates.sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
+                                let updatesListHtml = '<ul class="space-y-2 text-sm">';
+                                updates.forEach(update => {
+                                    updatesListHtml += `<li class="p-2 bg-gray-200 rounded">${update.timestamp.toDate().toLocaleString()}: <strong>${update.text}</strong></li>`;
+                                });
+                                updatesListHtml += '</ul>';
+                                updatesListDiv.innerHTML = updatesListHtml;
+                            } else {
+                                updatesListDiv.innerHTML = '<p class="text-sm text-gray-500">No detailed updates available for this shipment.</p>';
+                            }
+
+                            // Toggle visibility
+                            updatesListDiv.classList.toggle('hidden');
+                        });
+
                     } else {
                         formStatus.textContent = 'No shipment found with that number.';
                         formStatus.classList.add('text-red-500');

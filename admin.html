@@ -76,12 +76,12 @@
                 <form id="shipment-form" class="space-y-4">
                     <input type="hidden" id="shipment-id">
                     <div>
-                        <label for="po-number" class="block text-dark-gray text-sm font-bold mb-1">PO Number:</label>
-                        <input type="text" id="po-number" class="input-field" placeholder="e.g., PO12345" required>
+                        <label for="po-number" class="block text-dark-gray text-sm font-bold mb-1">VIN No.:</label>
+                        <input type="text" id="po-number" class="input-field" placeholder="e.g., VIN12345" required>
                     </div>
                     <div>
-                        <label for="tracking-number" class="block text-dark-gray text-sm font-bold mb-1">Tracking Number:</label>
-                        <input type="text" id="tracking-number" class="input-field" placeholder="e.g., TRK98765" required>
+                        <label for="tracking-number" class="block text-dark-gray text-sm font-bold mb-1">Lot No.:</label>
+                        <input type="text" id="tracking-number" class="input-field" placeholder="e.g., LOT98765" required>
                     </div>
                     <div>
                         <label for="status" class="block text-dark-gray text-sm font-bold mb-1">Status:</label>
@@ -107,16 +107,39 @@
                     <table class="min-w-full bg-white">
                         <thead class="bg-light-gray">
                             <tr>
-                                <th class="w-1/4 py-3 px-4 uppercase font-semibold text-sm text-left">PO Number</th>
-                                <th class="w-1/4 py-3 px-4 uppercase font-semibold text-sm text-left">Tracking Number</th>
-                                <th class="w-1/4 py-3 px-4 uppercase font-semibold text-sm text-left">Status</th>
-                                <th class="w-1/4 py-3 px-4 uppercase font-semibold text-sm text-center">Actions</th>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-left">Created At</th>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-left">VIN No.</th>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-left">Lot No.</th>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-left">Status</th>
+                                <th class="py-3 px-4 uppercase font-semibold text-sm text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="shipment-table-body" class="text-dark-gray">
                             <!-- Rows will be added here by JavaScript -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Shipment Updates Management Modal/Panel -->
+            <div id="shipment-updates-panel" class="hidden fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50">
+                <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold text-deep-green">Manage Shipment Updates for <span id="updates-panel-vin"></span></h3>
+                        <button id="close-updates-panel" class="text-2xl font-bold text-dark-gray">&times;</button>
+                    </div>
+                    <!-- Add Update Form -->
+                    <form id="add-update-form" class="mb-6 space-y-2">
+                        <input type="hidden" id="update-shipment-id">
+                        <label for="new-update-text" class="block text-dark-gray text-sm font-bold">New Update Text:</label>
+                        <textarea id="new-update-text" class="input-field w-full" rows="2" required></textarea>
+                        <button type="submit" class="btn btn-primary w-full">Add Update</button>
+                    </form>
+                    <!-- Updates List -->
+                    <h4 class="text-xl font-semibold text-dark-gray mb-2">Current Updates</h4>
+                    <ul id="updates-list" class="space-y-2">
+                        <!-- Updates will be rendered here -->
+                    </ul>
                 </div>
             </div>
 
@@ -202,6 +225,15 @@
                 const shipmentCancelButton = document.getElementById('cancel-button');
                 const shipmentIdField = document.getElementById('shipment-id');
 
+                // --- Shipment Updates Management ---
+                const updatesPanel = document.getElementById('shipment-updates-panel');
+                const closeUpdatesPanelBtn = document.getElementById('close-updates-panel');
+                const updatesPanelVin = document.getElementById('updates-panel-vin');
+                const updatesList = document.getElementById('updates-list');
+                const addUpdateForm = document.getElementById('add-update-form');
+                const updateShipmentIdField = document.getElementById('update-shipment-id');
+                const newUpdateTextField = document.getElementById('new-update-text');
+
                 const resetShipmentForm = () => {
                     shipmentForm.reset();
                     shipmentFormTitle.textContent = 'Add New Shipment';
@@ -210,7 +242,7 @@
                     shipmentIdField.value = '';
                 };
 
-                shipmentsCollection.onSnapshot(snapshot => {
+                shipmentsCollection.orderBy('createdAt', 'desc').onSnapshot(snapshot => {
                     shipmentTableBody.innerHTML = '';
                     snapshot.docs.forEach(doc => {
                         const data = doc.data();
@@ -219,10 +251,11 @@
                         tr.classList.add('border-b', 'hover:bg-gray-50');
                         const statusColors = {'Pending': 'bg-gray-200 text-gray-800','In Transit': 'bg-yellow-200 text-yellow-800','Out for Delivery': 'bg-blue-200 text-blue-800','Delivered': 'bg-green-200 text-green-800','Exception': 'bg-red-200 text-red-800'};
                         const statusColor = statusColors[data.status] || 'bg-gray-200 text-gray-800';
-                        tr.innerHTML = `<td class="py-3 px-4">${data.poNumber}</td><td class="py-3 px-4">${data.trackingNumber}</td><td class="py-3 px-4"><span class="${statusColor} py-1 px-3 rounded-full text-xs">${data.status}</span></td><td class="py-3 px-4 text-center"><button class="edit-btn text-sea-green hover:text-deep-green font-semibold mr-4">Edit</button><button class="delete-btn text-red-500 hover:text-red-700 font-semibold">Delete</button></td>`;
+                        const timestamp = data.createdAt ? data.createdAt.toDate().toLocaleString() : 'N/A';
+                        tr.innerHTML = `<td class="py-3 px-4 text-sm">${timestamp}</td><td class="py-3 px-4">${data.poNumber}</td><td class="py-3 px-4">${data.trackingNumber}</td><td class="py-3 px-4"><span class="${statusColor} py-1 px-3 rounded-full text-xs">${data.status}</span></td><td class="py-3 px-4 text-center"><button class="manage-updates-btn text-blue-500 hover:text-blue-700 font-semibold mr-2">Updates</button><button class="edit-btn text-sea-green hover:text-deep-green font-semibold mr-2">Edit</button><button class="delete-btn text-red-500 hover:text-red-700 font-semibold">Delete</button></td>`;
                         shipmentTableBody.appendChild(tr);
                     });
-                }, err => alert("Could not fetch shipment data."));
+                }, err => alert("Could not fetch shipment data. Check Firestore indexes."));
 
                 shipmentForm.addEventListener('submit', e => {
                     e.preventDefault();
@@ -230,14 +263,44 @@
                     const trackingNumber = shipmentForm['tracking-number'].value;
                     const status = shipmentForm.status.value;
                     const id = shipmentIdField.value;
-                    const promise = id ? shipmentsCollection.doc(id).update({ poNumber, trackingNumber, status }) : shipmentsCollection.add({ poNumber, trackingNumber, status });
+                    const promise = id
+                        ? shipmentsCollection.doc(id).update({ poNumber, trackingNumber, status })
+                        : shipmentsCollection.add({ poNumber, trackingNumber, status, createdAt: firebase.firestore.FieldValue.serverTimestamp(), updates: [] });
                     promise.then(resetShipmentForm).catch(err => console.error(err));
                 });
+
+                const openUpdatesPanel = (shipmentId, vin) => {
+                    updateShipmentIdField.value = shipmentId;
+                    updatesPanelVin.textContent = vin;
+                    updatesList.innerHTML = '<li>Loading updates...</li>';
+                    updatesPanel.classList.remove('hidden');
+
+                    shipmentsCollection.doc(shipmentId).onSnapshot(doc => {
+                        updatesList.innerHTML = '';
+                        const updates = doc.data().updates || [];
+                        if (updates.length === 0) {
+                            updatesList.innerHTML = '<li>No updates for this shipment yet.</li>';
+                            return;
+                        }
+                        // Sort updates by timestamp ascending
+                        updates.sort((a, b) => a.timestamp.toMillis() - b.timestamp.toMillis());
+                        updates.forEach((update, index) => {
+                            const li = document.createElement('li');
+                            li.className = 'flex justify-between items-center p-2 bg-gray-100 rounded';
+                            li.innerHTML = `<span>${update.timestamp.toDate().toLocaleString()}: ${update.text}</span>`;
+                            updatesList.appendChild(li);
+                        });
+                    });
+                };
 
                 shipmentTableBody.addEventListener('click', e => {
                     const row = e.target.closest('tr');
                     if (!row) return;
                     const id = row.dataset.id;
+                    if (e.target.matches('.manage-updates-btn')) {
+                        const vin = row.cells[1].textContent;
+                        openUpdatesPanel(id, vin);
+                    }
                     if (e.target.matches('.edit-btn')) {
                         shipmentsCollection.doc(id).get().then(doc => {
                             const data = doc.data();
@@ -259,6 +322,25 @@
                 });
 
                 shipmentCancelButton.addEventListener('click', resetShipmentForm);
+                closeUpdatesPanelBtn.addEventListener('click', () => updatesPanel.classList.add('hidden'));
+
+                addUpdateForm.addEventListener('submit', e => {
+                    e.preventDefault();
+                    const shipmentId = updateShipmentIdField.value;
+                    const updateText = newUpdateTextField.value.trim();
+                    if (!shipmentId || !updateText) return;
+
+                    const newUpdate = {
+                        text: updateText,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+
+                    shipmentsCollection.doc(shipmentId).update({
+                        updates: firebase.firestore.FieldValue.arrayUnion(newUpdate)
+                    }).then(() => {
+                        addUpdateForm.reset();
+                    }).catch(err => console.error("Error adding update:", err));
+                });
 
                 // --- RFQ Management ---
                 const rfqOptionsCollection = db.collection('rfqOptions');
